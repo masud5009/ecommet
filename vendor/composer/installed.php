@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '87c9feea5516212e542a36261ed6b6a59cb77661',
+        'reference' => '137a715ed2dc6b0de20eb9a446c68e8e95d53c7f',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -63,6 +63,15 @@
             'install_path' => __DIR__ . '/../bacon/bacon-qr-code',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'barryvdh/laravel-debugbar' => array(
+            'pretty_version' => 'v3.16.0',
+            'version' => '3.16.0.0',
+            'reference' => 'f265cf5e38577d42311f1a90d619bcd3740bea23',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../barryvdh/laravel-debugbar',
+            'aliases' => array(),
+            'dev_requirement' => true,
         ),
         'barryvdh/laravel-dompdf' => array(
             'pretty_version' => 'v1.0.2',
@@ -655,7 +664,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '87c9feea5516212e542a36261ed6b6a59cb77661',
+            'reference' => '137a715ed2dc6b0de20eb9a446c68e8e95d53c7f',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -813,6 +822,12 @@
             'install_path' => __DIR__ . '/../masterminds/html5',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'maximebf/debugbar' => array(
+            'dev_requirement' => true,
+            'replaced' => array(
+                0 => 'v2.2.6',
+            ),
         ),
         'mews/purifier' => array(
             'pretty_version' => '3.4.3',
@@ -1045,6 +1060,15 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'php-debugbar/php-debugbar' => array(
+            'pretty_version' => 'v2.2.6',
+            'version' => '2.2.6.0',
+            'reference' => 'abb9fa3c5c8dbe7efe03ddba56782917481de3e8',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../php-debugbar/php-debugbar',
+            'aliases' => array(),
+            'dev_requirement' => true,
+        ),
         'php-http/async-client-implementation' => array(
             'dev_requirement' => false,
             'provided' => array(
@@ -1264,8 +1288,8 @@
         'psr/http-client-implementation' => array(
             'dev_requirement' => false,
             'provided' => array(
-                0 => '1.0',
-                1 => '*',
+                0 => '*',
+                1 => '1.0',
             ),
         ),
         'psr/http-factory' => array(
@@ -1280,8 +1304,8 @@
         'psr/http-factory-implementation' => array(
             'dev_requirement' => false,
             'provided' => array(
-                0 => '1.0',
-                1 => '*',
+                0 => '*',
+                1 => '1.0',
             ),
         ),
         'psr/http-message' => array(
@@ -1296,8 +1320,8 @@
         'psr/http-message-implementation' => array(
             'dev_requirement' => false,
             'provided' => array(
-                0 => '1.0',
-                1 => '*',
+                0 => '*',
+                1 => '1.0',
             ),
         ),
         'psr/log' => array(
