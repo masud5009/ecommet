@@ -72,6 +72,15 @@
           </a>
         </li>
 
+        <li class="nav-item
+                @if (request()->routeIs('user.pos')) active @endif">
+          <a href="{{ route('user.pos').'?language=' . $defaultLang }}">
+            <i class="fas fa-cash-register"></i>
+
+            <p>{{ __('POS') }}</p>
+          </a>
+        </li>
+
         @if (!is_null($package))
           {{-- START SHOP MANAGEMENT --}}
           <li

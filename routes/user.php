@@ -17,6 +17,11 @@ Route::group(['prefix' => 'user', 'middleware' => ['auth', 'userstatus', 'Demo',
     Route::post('/change-status', 'User\UserController@status')->name('user-status');
 
 
+    //pos route
+    Route::get('pos', 'User\PosController@index')->name('user.pos');
+    Route::get('pos/complete', 'User\PosController@complete')->name('user.pos.complete-sale');
+
+
     // User Hero Section Image & Text Routes
     // home page hero-section slider-version route start
     Route::prefix('pages')->group(function () {
