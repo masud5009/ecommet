@@ -17,8 +17,11 @@ use Money\Money;
  */
 final class ReversedCurrenciesExchange implements Exchange
 {
-    public function __construct(private readonly Exchange $exchange)
+    private Exchange $exchange;
+
+    public function __construct(Exchange $exchange)
     {
+        $this->exchange = $exchange;
     }
 
     public function quote(Currency $baseCurrency, Currency $counterCurrency): CurrencyPair

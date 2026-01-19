@@ -3,91 +3,97 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Faq;
+use App\Models\FAQ;
 use App\Models\Language;
-use Validator;
-use Session;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Validator;
 
 class FaqController extends Controller
 {
-    public function index(Request $request)
-    {
-        $lang = Language::where('code', $request->language)->firstOrFail();
-        $lang_id = $lang->id;
-        $data['faqs'] = Faq::where('language_id', $lang_id)->orderBy('id', 'DESC')->get();
-        $data['lang_id'] = $lang_id;
-        return view('admin.faq.index', $data);
+  public function index(Request $request)
+  {
+    // first, get the language info from db
+    $language = Language::query()->where('code', '=', $request->language)->firstOrFail();
+    $information['language'] = $language;
+
+    // then, get the faqs of that language from db
+    $information['faqs'] = $language->faq()->orderByDesc('id')->get();
+
+    // also, get all the languages from db
+    $information['langs'] = Language::all();
+
+    return view('admin.faq.index', $information);
+  }
+
+  public function store(Request $request)
+  {
+    $rules = [
+      'language_id' => 'required',
+      'question' => 'required|max:255',
+      'answer' => 'required',
+      'serial_number' => 'required'
+    ];
+
+    $validator = Validator::make($request->all(), $rules);
+
+    if ($validator->fails()) {
+      return Response::json([
+        'errors' => $validator->getMessageBag()->toArray()
+      ], 400);
+    }
+    FAQ::query()->create($request->all());
+
+    session()->flash('success', __('New faq added successfully!'));
+
+    return Response::json(['status' => 'success'], 200);
+  }
+  public function update(Request $request)
+  {
+    $rules = [
+      'question' => 'required|max:255',
+      'answer' => 'required',
+      'serial_number' => 'required'
+    ];
+
+    $validator = Validator::make($request->all(), $rules);
+
+    if ($validator->fails()) {
+      return Response::json([
+        'errors' => $validator->getMessageBag()->toArray()
+      ], 400);
     }
 
-    public function store(Request $request)
-    {
-        $rules = [
-            'language_id' => 'required',
-            'question' => 'required|max:255',
-            'answer' => 'required',
-            'serial_number' => 'required|integer',
-        ];
+    $faq = FAQ::query()->find($request->id);
 
-        $validator = Validator::make($request->all(), $rules);
-        if ($validator->fails()) {
-            $validator->getMessageBag()->add('error', 'true');
-            return response()->json($validator->errors());
-        }
+    $faq->update($request->all());
 
-        $faq = new Faq;
-        $faq->language_id = $request->language_id;
-        $faq->question = $request->question;
-        $faq->answer = $request->answer;
-        $faq->serial_number = $request->serial_number;
-        $faq->save();
+    session()->flash('success', __('FAQ updated successfully!'));
 
-        Session::flash('success', __("Created Successfully"));
-        return "success";
+    return Response::json(['status' => 'success'], 200);
+  }
+
+  public function destroy($id)
+  {
+    $faq = FAQ::query()->find($id);
+
+    $faq->delete();
+
+    return redirect()->back()->with('success', __('FAQ deleted successfully!'));
+  }
+
+  public function bulkDestroy(Request $request)
+  {
+    $ids = $request->ids;
+
+    foreach ($ids as $id) {
+      $faq = FAQ::query()->find($id);
+
+      $faq->delete();
     }
 
-    public function update(Request $request)
-    {
-        $rules = [
-            'question' => 'required|max:255',
-            'answer' => 'required',
-            'serial_number' => 'required|integer',
-        ];
+    session()->flash('success', __('FAQs deleted successfully!'));
 
-        $validator = Validator::make($request->all(), $rules);
-        if ($validator->fails()) {
-            $validator->getMessageBag()->add('error', 'true');
-            return response()->json($validator->errors());
-        }
-
-        $faq = Faq::findOrFail($request->faq_id);
-        $faq->question = $request->question;
-        $faq->answer = $request->answer;
-        $faq->serial_number = $request->serial_number;
-        $faq->save();
-
-        Session::flash('success', __('Updated Successfully'));
-        return "success";
-    }
-
-    public function delete(Request $request)
-    {
-        $faq = Faq::findOrFail($request->faq_id);
-        $faq->delete();
-        Session::flash('success', __('Deleted Successfully'));
-        return back();
-    }
-
-    public function bulkDelete(Request $request)
-    {
-        $ids = $request->ids;
-
-        foreach ($ids as $id) {
-            $faq = Faq::findOrFail($id);
-            $faq->delete();
-        }
-
-        Session::flash('success', __('Deleted Successfully'));
-        return "success";
-    }
+    return Response::json(['status' => 'success'], 200);
+  }
 }

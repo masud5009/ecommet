@@ -20,8 +20,14 @@ use function array_reverse;
  */
 final class IndirectExchange implements Exchange
 {
-    public function __construct(private readonly Exchange $exchange, private readonly Currencies $currencies)
+    private Currencies $currencies;
+
+    private Exchange $exchange;
+
+    public function __construct(Exchange $exchange, Currencies $currencies)
     {
+        $this->exchange   = $exchange;
+        $this->currencies = $currencies;
     }
 
     public function quote(Currency $baseCurrency, Currency $counterCurrency): CurrencyPair
@@ -32,9 +38,9 @@ final class IndirectExchange implements Exchange
             $rate = array_reduce(
                 $this->getConversions($baseCurrency, $counterCurrency),
                 /**
-                 * @phpstan-param numeric-string $carry
+                 * @psalm-param numeric-string $carry
                  *
-                 * @phpstan-return numeric-string
+                 * @psalm-return numeric-string
                  */
                 static function (string $carry, CurrencyPair $pair) {
                     $calculator = Money::getCalculator();
@@ -58,7 +64,7 @@ final class IndirectExchange implements Exchange
         $startNode             = new IndirectExchangeQueuedItem($baseCurrency);
         $startNode->discovered = true;
 
-        /** @phpstan-var array<non-empty-string, IndirectExchangeQueuedItem> $nodes */
+        /** @psalm-var array<non-empty-string, IndirectExchangeQueuedItem> $nodes */
         $nodes = [$baseCurrency->getCode() => $startNode];
 
         /** @psam-var SplQueue<IndirectExchangeQueuedItem> $frontier */
@@ -66,7 +72,7 @@ final class IndirectExchange implements Exchange
         $frontier->enqueue($startNode);
 
         while ($frontier->count()) {
-            /** @phpstan-var IndirectExchangeQueuedItem $currentNode */
+            /** @psalm-var IndirectExchangeQueuedItem $currentNode */
             $currentNode     = $frontier->dequeue();
             $currentCurrency = $currentNode->currency;
 
@@ -93,7 +99,7 @@ final class IndirectExchange implements Exchange
                     $node->parent     = $currentNode;
 
                     $frontier->enqueue($node);
-                } catch (UnresolvableCurrencyPairException) {
+                } catch (UnresolvableCurrencyPairException $exception) {
                     // Not a neighbor. Move on.
                 }
             }
@@ -103,10 +109,10 @@ final class IndirectExchange implements Exchange
     }
 
     /**
-     * @phpstan-param array<non-empty-string, IndirectExchangeQueuedItem> $currencies
+     * @psalm-param array<non-empty-string, IndirectExchangeQueuedItem> $currencies
      *
      * @return CurrencyPair[]
-     * @phpstan-return list<CurrencyPair>
+     * @psalm-return list<CurrencyPair>
      */
     private function reconstructConversionChain(array $currencies, IndirectExchangeQueuedItem $goalNode): array
     {

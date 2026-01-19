@@ -1,234 +1,291 @@
 @extends('admin.layout')
 
-@php
-  $admin = Auth::guard('admin')->user();
-  if (!empty($admin->role)) {
-      $permissions = $admin->role->permissions;
-      $permissions = json_decode($permissions, true);
-  }
-@endphp
-
 @section('content')
   <div class="mt-2 mb-4">
-    <h2 class="{{ request()->cookie('admin-theme') == 'dark' ? 'text-white' : 'text-dark' }} pb-2">
-      {{ __('Welcome back,') }}
-      {{ Auth::guard('admin')->user()->first_name }}
-      {{ Auth::guard('admin')->user()->last_name }}!</h2>
-  </div>
-  <div class="row">
-    @if (empty($admin->role) || (!empty($permissions) && in_array('Users Management', $permissions)))
-      <div class="col-sm-6 col-md-4">
-        <a class="card card-stats card-info card-round" href="{{ route('admin.register.user') }}">
-          <div class="card-body">
-            <div class="row">
-              <div class="col-5">
-                <div class="icon-big text-center">
-                  <i class="fas fa-users"></i>
-                </div>
-              </div>
-              <div class="col-7 col-stats">
-                <div class="numbers">
-                  <p class="card-category">{{ __('Registered Users') }}</p>
-                  <h4 class="card-title">{{ App\Models\User::count() }}</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-        </a>
-      </div>
-    @endif
-
-    @if (empty($admin->role) || (!empty($permissions) && in_array('Package Management', $permissions)))
-      <div class="col-sm-6 col-md-4">
-        <a class="card card-stats card-success card-round" href="{{ route('admin.package.index') }}">
-          <div class="card-body ">
-            <div class="row">
-              <div class="col-5">
-                <div class="icon-big text-center">
-                  <i class="fas fa-list-ul"></i>
-                </div>
-              </div>
-              <div class="col-7 col-stats">
-                <div class="numbers">
-                  <p class="card-category">{{ __('Packages') }}</p>
-                  <h4 class="card-title">{{ App\Models\Package::count() }}</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-        </a>
-      </div>
-    @endif
-
-
-    @if (empty($admin->role) || (!empty($permissions) && in_array('Payment Log', $permissions)))
-      <div class="col-sm-6 col-md-4">
-        <a class="card card-stats card-danger card-round" href="{{ route('admin.payment-log.index') }}">
-          <div class="card-body ">
-            <div class="row">
-              <div class="col-5">
-                <div class="icon-big text-center">
-                  <i class="fas fa-money-check-alt"></i>
-                </div>
-              </div>
-              <div class="col-7 col-stats">
-                <div class="numbers">
-                  <p class="card-category">{{ __('Payment Logs') }}</p>
-                  <h4 class="card-title">{{ App\Models\Membership::count() }}</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-        </a>
-      </div>
-    @endif
-
-    @if (empty($admin->role) || (!empty($permissions) && in_array('Admins Management', $permissions)))
-      <div class="col-sm-6 col-md-4">
-        <a class="card card-stats card-secondary card-round" href="{{ route('admin.user.index') }}">
-          <div class="card-body ">
-            <div class="row">
-              <div class="col-5">
-                <div class="icon-big text-center">
-                  <i class="fas fa-users-cog"></i>
-                </div>
-              </div>
-              <div class="col-7 col-stats">
-                <div class="numbers">
-                  <p class="card-category">{{ __('Registerd Admins') }}</p>
-                  <h4 class="card-title">{{ App\Models\Admin::count() }}</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-        </a>
-      </div>
-    @endif
-
-    @if (empty($admin->role) || (!empty($permissions) && in_array('Pages', $permissions)))
-      <div class="col-sm-6 col-md-4">
-        <a class="card card-stats card-primary card-round"
-          href="{{ route('admin.blog.index', ['language' => $defaultLang->code]) }}">
-          <div class="card-body ">
-            <div class="row">
-              <div class="col-5">
-                <div class="icon-big text-center">
-                  <i class="fas fa-blog"></i>
-                </div>
-              </div>
-              <div class="col-7 col-stats">
-                <div class="numbers">
-                  <p class="card-category">{{ __('Blog') }}</p>
-                  <h4 class="card-title">{{ $defaultLang->blogs()->count() }}</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-        </a>
-      </div>
-    @endif
-
-    @if (empty($admin->role) || (!empty($permissions) && in_array('Users Management', $permissions)))
-      <div class="col-sm-6 col-md-4">
-        <a class="card card-stats card-warning card-round" href="{{ route('admin.subscriber.index') }}">
-          <div class="card-body ">
-            <div class="row">
-              <div class="col-5">
-                <div class="icon-big text-center">
-                  <i class="fas fa-mail-bulk"></i>
-                </div>
-              </div>
-              <div class="col-7 col-stats">
-                <div class="numbers">
-                  <p class="card-category">{{ __('Subscribers') }}</p>
-                  <h4 class="card-title">{{ App\Models\Subscriber::count() }}</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-        </a>
-      </div>
-    @endif
+    <h2 class="pb-2">{{ __('Welcome back,') }} {{ $authAdmin->first_name . ' ' . $authAdmin->last_name . '!' }}</h2>
   </div>
 
-  <div class="row">
-    @if (empty($admin->role) || (!empty($permissions) && in_array('Payment Log', $permissions)))
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">{{ __('Monthly Income') }} ({{ date('Y') }})</div>
-          </div>
-          <div class="card-body">
-            <div class="chart-container">
-              <canvas id="lineChart"></canvas>
+  {{-- dashboard information start --}}
+  @php
+    if (!is_null($roleInfo)) {
+        $rolePermissions = json_decode($roleInfo->permissions);
+    }
+  @endphp
+
+  <div class="row dashboard-items">
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Total Profit', $rolePermissions)))
+      <div class="col-sm-6 col-md-3" data-toggle="tooltip" data-placement="right" data-html="true"
+        title="{{ __('Service Booking') . ',' . __('Product Purchase') . ',' . __('Featured Service') . ',' . __('Membership Buy') . ',' . __('Withdraw') }}"
+        (click)="nodeion(node)">
+        <a href="{{ route('admin.monthly_profit') }}">
+          <div class="card card-stats card-earning  card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fas fa-money-check-alt"></i>
+                  </div>
+                </div>
+
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Total Profit') }}</p>
+                    <h4 class="card-title">{{ symbolPrice($totalProfitAmount) }}
+                    </h4>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+        </a>
+      </div>
+    @endif
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Service Managment', $rolePermissions)))
+      <div class="col-sm-6 col-md-3">
+        <a href="{{ route('admin.service_managment', ['language' => $currentLang->code]) }}">
+          <div class="card card-stats card-success card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fas fa-wrench"></i>
+                  </div>
+                </div>
+
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Services') }}</p>
+                    <h4 class="card-title">{{ $totalService }}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    @endif
+
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Transactions', $rolePermissions)))
+      <div class="col-sm-6 col-md-3">
+        <a href="{{ route('admin.transaction') }}">
+          <div class="card card-stats card-secondary card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fal fa-exchange-alt"></i>
+                  </div>
+                </div>
+
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Transaction') }}</p>
+                    <h4 class="card-title">{{ $totalTransaction }}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    @endif
+
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Shop Management', $rolePermissions)))
+      <div class="col-sm-6 col-md-3">
+        <a href="{{ route('admin.shop_management.products', ['language' => $currentLang->code]) }}">
+          <div class="card card-stats card-primary card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fal fa-box-alt"></i>
+                  </div>
+                </div>
+
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Products') }}</p>
+                    <h4 class="card-title">{{ $totalProduct }}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    @endif
+
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Shop Management', $rolePermissions)))
+      <div class="col-sm-6 col-md-3">
+        <a href="{{ route('admin.shop_management.orders') }}">
+          <div class="card card-stats card-warning card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fal fa-shopping-cart"></i>
+                  </div>
+                </div>
+
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Orders') }}</p>
+                    <h4 class="card-title">{{ $totalOrder }}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    @endif
+
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Blog Management', $rolePermissions)))
+      <div class="col-sm-6 col-md-3">
+        <a href="{{ route('admin.blog_management.blogs', ['language' => $currentLang->code]) }}">
+          <div class="card card-stats card-info card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fal fa-blog"></i>
+                  </div>
+                </div>
+
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Blog') }}</p>
+                    <h4 class="card-title">{{ $totalBlog }}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    @endif
+
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('Vendors Management', $rolePermissions)))
+      <div class="col-sm-6 col-md-3">
+        <a href="{{ route('admin.vendor_management.registered_vendor') }}">
+          <div class="card card-stats card-secondary card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fas fa-users"></i>
+                  </div>
+                </div>
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Vendors') }}</p>
+                    <h4 class="card-title">
+                      {{ $vendors }}
+                    </h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    @endif
+
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('User Management', $rolePermissions)))
+      <div class="col-sm-6 col-md-3">
+        <a href="{{ route('admin.user_management.registered_users') }}">
+          <div class="card card-stats card-orchid card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="la flaticon-users"></i>
+                  </div>
+                </div>
+
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Users') }}</p>
+                    <h4 class="card-title">{{ $totalUser }}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    @endif
+
+    @if (is_null($roleInfo) || (!empty($rolePermissions) && in_array('User Management', $rolePermissions)))
+      <div class="col-sm-6 col-md-3">
+        <a href="{{ route('admin.user_management.subscribers') }}">
+          <div class="card card-stats card-dark card-round">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fal fa-bell"></i>
+                  </div>
+                </div>
+
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">{{ __('Subscribers') }}</p>
+                    <h4 class="card-title">{{ $totalSubscriber }}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    @endif
+  </div>
+  <div class="row">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">{{ __('Monthly Income') }} ({{ date('Y') }})</div>
+        </div>
+
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="incomeChart"></canvas>
           </div>
         </div>
       </div>
-    @endif
+    </div>
 
-    @if (empty($admin->role) || (!empty($permissions) && in_array('Users Management', $permissions)))
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">{{ __('Monthly Premium Users') }} ({{ date('Y') }})</div>
-          </div>
-          <div class="card-body">
-            <div class="chart-container">
-              <canvas id="usersChart"></canvas>
-            </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">{{ __('Month wise appointment') }} ({{ date('Y') }})</div>
+        </div>
+
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="montlyAppointment"></canvas>
           </div>
         </div>
       </div>
-    @endif
+    </div>
   </div>
+  {{-- dashboard information end --}}
 @endsection
 
-@php
-  $months = [];
-  $inTotals = [];
+@section('script')
+  {{-- chart js --}}
+  <script type="text/javascript" src="{{ asset('assets/js/chart.min.js') }}"></script>
 
-  for ($i = 1; $i <= 12; $i++) {
-      $monthNum = $i;
-      $dateObj = DateTime::createFromFormat('!m', $monthNum);
-      $months[] = $dateObj->format('M');
-
-      $inFound = 0;
-      foreach ($incomes as $key => $income) {
-          if ($income->month == $i) {
-              $inTotals[] = $income->total;
-              $inFound = 1;
-              break;
-          }
-      }
-      if ($inFound == 0) {
-          $inTotals[] = 0;
-      }
-
-      $userFound = 0;
-      foreach ($users as $key => $user) {
-          if ($user->month == $i) {
-              $userTotals[] = $user->total;
-              $userFound = 1;
-              break;
-          }
-      }
-      if ($userFound == 0) {
-          $userTotals[] = 0;
-      }
-  }
-
-@endphp
-@section('scripts')
-  <!-- Chart JS -->
-  <script src="{{ asset('assets/admin/js/plugin/chart.min.js') }}"></script>
   <script>
     "use strict";
-    var months = {!! json_encode($months) !!};
-    var inTotals = {{ json_encode($inTotals) }};
-    var userTotals = {{ json_encode($userTotals) }};
-    var Monthly_Income = "{{ __('Monthly Income') }}";
-    var Monthly_Premium_Users = "{{ __('Monthly Premium Users') }}";
+    const monthArr = @php echo json_encode($monthArr) @endphp;
+    const monthlyIncome = @php echo json_encode($monthlyIncome) @endphp;
+    const monthlyAppointment = @php echo json_encode($monthlyAppoinment) @endphp;
+    $(document).ready(function() {
+      $('[data-toggle="tooltip"]').tooltip();
+    });
   </script>
-  <script src="{{ asset('assets/admin/js/chart-init.js') }}"></script>
+
+  <script type="text/javascript" src="{{ asset('assets/js/chart-init.js') }}"></script>
 @endsection

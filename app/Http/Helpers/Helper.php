@@ -1,1131 +1,482 @@
 <?php
 
-use App\Http\Helpers\UserPermissionHelper;
-use App\Models\CustomerWishList;
-use App\Models\Language;
-use App\Models\Page;
-use App\Models\PaymentGateway;
-use App\Models\User;
-use App\Models\User\ProductVariation;
-use App\Models\User\UserCurrency;
-use App\Models\User\UserItem;
-use App\Models\User\UserShopSetting;
-use App\Models\User\UserItemContent;
-use App\Models\User\UserItemReview;
-use App\Models\User\UserPageContent;
-use App\Models\User\UserPaymentGeteway;
 use Carbon\Carbon;
+use App\Models\Language;
+use App\Models\Staff\Staff;
+use App\Models\Advertisement;
+use App\Http\Helpers\BasicMailer;
+use App\Models\Admin\Transaction;
+use App\Models\Services\Services;
+use App\Models\Staff\StaffPlugin;
+use App\Models\BasicSettings\Basic;
+use App\Models\Services\ServiceImage;
+use App\Models\Services\ServiceBooking;
+use App\Models\Services\ServiceContent;
+use App\Models\BasicSettings\MailTemplate;
+use App\Http\Helpers\VendorPermissionHelper;
+use App\Models\PaymentGateway\OnlineGateway;
+use App\Http\Controllers\Vendor\Staff\ZoomController;
+use App\Http\Controllers\FrontEnd\MiscellaneousController;
+use App\Http\Controllers\FrontEnd\GoogleCalendarController;
+use App\Http\Controllers\Staff\GoogleCalendarController as StaffCalendarController;
 
+if (!function_exists('createSlug')) {
+  function createSlug($string)
+  {
+    $slug = preg_replace('/\s+/u', '-', trim($string));
+    $slug = str_replace('/', '', $slug);
+    $slug = str_replace('?', '', $slug);
+    $slug = str_replace(',', '', $slug);
 
-if (!function_exists('email_collector_api')) {
-    function email_collector_api($email)
-    {
-        $data = [
-            'item_name'      => 'Evento',
-            'email'          => $email,
-            'username'       => NULL,
-            'item_id'        => NULL,
-            'url'            => url('/'),
-            'collector_key'  => 'rakoombaa', // authentication or API key
-            'purchase_code'  => NULL
-        ];
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL            => 'https://kreativdev.com/emailcollector/api/collect', // API endpoint
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST  => 'POST',
-            CURLOPT_POSTFIELDS     => http_build_query($data), // Convert array to URL-encoded query string
-            CURLOPT_HTTPHEADER     => [
-                'Accept: application/json',
-                'Content-Type: application/x-www-form-urlencoded',
-            ],
-        ]);
-        $response = curl_exec($curl);
-
-        curl_close($curl);
-        return;
-    }
+    return mb_strtolower($slug);
+  }
 }
-
 if (!function_exists('truncateString')) {
-    function truncateString($string, $maxLength)
-    {
-        return strlen($string) > $maxLength ? mb_substr($string, 0, $maxLength, 'UTF-8') . '...' : $string;
-    }
-}
-
-
-if (!function_exists('setEnvironmentValue')) {
-    function setEnvironmentValue(array $values)
-    {
-
-        $envFile = app()->environmentFilePath();
-        $str = file_get_contents($envFile);
-
-        if (count($values) > 0) {
-            foreach ($values as $envKey => $envValue) {
-
-                $str .= "\n"; // In case the searched variable is in the last line without \n
-                $keyPosition = strpos($str, "{$envKey}=");
-                $endOfLinePosition = strpos($str, "\n", $keyPosition);
-                $oldLine = substr($str, $keyPosition, $endOfLinePosition - $keyPosition);
-
-                // If key does not exist, add it
-                if (!$keyPosition || !$endOfLinePosition || !$oldLine) {
-                    $str .= "{$envKey}={$envValue}\n";
-                } else {
-                    $str = str_replace($oldLine, "{$envKey}={$envValue}", $str);
-                }
-            }
-        }
-
-        $str = substr($str, 0, -1);
-        if (!file_put_contents($envFile, $str)) return false;
-        return true;
-    }
-}
-
-
-if (!function_exists('replaceBaseUrl')) {
-    function replaceBaseUrl($html)
-    {
-        $startDelimiter = 'src="';
-        $endDelimiter = '/assets/front/img/summernote';
-        $startDelimiterLength = strlen($startDelimiter);
-        $endDelimiterLength = strlen($endDelimiter);
-        $startFrom = $contentStart = $contentEnd = 0;
-        while (false !== ($contentStart = strpos($html, $startDelimiter, $startFrom))) {
-            $contentStart += $startDelimiterLength;
-            $contentEnd = strpos($html, $endDelimiter, $contentStart);
-            if (false === $contentEnd) {
-                break;
-            }
-            $html = substr_replace($html, url('/'), $contentStart, $contentEnd - $contentStart);
-            $startFrom = $contentEnd + $endDelimiterLength;
-        }
-
-        return $html;
-    }
-}
-
-if (!function_exists('convertUtf8')) {
-    function convertUtf8($value)
-    {
-        return mb_detect_encoding($value, mb_detect_order(), true) === 'UTF-8' ? $value : mb_convert_encoding($value, 'UTF-8');
-    }
-}
-
-if (!function_exists('make_slug')) {
-    function make_slug($string)
-    {
-        $slug = preg_replace('/\s+/u', '-', trim($string));
-        $slug = str_replace("/", "", $slug);
-        $slug = str_replace("?", "", $slug);
-        $slug = str_replace("(", "", $slug);
-        $slug = str_replace(")", "", $slug);
-        $slug = str_replace("%", "", $slug);
-        $slug = str_replace("&", "-", $slug);
-        return mb_strtolower($slug, 'UTF-8');
-    }
+  function truncateString($string, $maxLength)
+  {
+    return strlen($string) > $maxLength ? mb_substr($string, 0, $maxLength, 'UTF-8') . '...' : $string;
+  }
 }
 
 if (!function_exists('make_input_name')) {
-    function make_input_name($string)
-    {
-        return preg_replace('/\s+/u', '_', trim($string));
-    }
+  function make_input_name($string)
+  {
+    return preg_replace('/\s+/u', '_', trim($string));
+  }
 }
 
-if (!function_exists('hasCategory')) {
-    function hasCategory($version)
-    {
-        if (strpos($version, "no_category") !== false) {
-            return false;
+if (!function_exists('replaceBaseUrl')) {
+  function replaceBaseUrl($html, $type)
+  {
+    $startDelimiter = 'src=""';
+    if ($type == 'summernote') {
+      $endDelimiter = '/assets/img/summernote';
+    } elseif ($type == 'pagebuilder') {
+      $endDelimiter = '/assets/img';
+    }
+
+    $startDelimiterLength = strlen($startDelimiter);
+    $endDelimiterLength = strlen($endDelimiter);
+    $startFrom = $contentStart = $contentEnd = 0;
+
+    while (false !== ($contentStart = strpos($html, $startDelimiter, $startFrom))) {
+      $contentStart += $startDelimiterLength;
+      $contentEnd = strpos($html, $endDelimiter, $contentStart);
+
+      if (false === $contentEnd) {
+        break;
+      }
+
+      $html = substr_replace($html, url('/'), $contentStart, $contentEnd - $contentStart);
+      $startFrom = $contentEnd + $endDelimiterLength;
+    }
+
+    return $html;
+  }
+}
+
+if (!function_exists('setEnvironmentValue')) {
+  function setEnvironmentValue(array $values)
+  {
+    $envFile = app()->environmentFilePath();
+    $str = file_get_contents($envFile);
+
+    if (count($values) > 0) {
+      foreach ($values as $envKey => $envValue) {
+        $str .= "\n"; // In case the searched variable is in the last line without \n
+        $keyPosition = strpos($str, "{$envKey}=");
+        $endOfLinePosition = strpos($str, "\n", $keyPosition);
+        $oldLine = substr($str, $keyPosition, $endOfLinePosition - $keyPosition);
+
+        // If key does not exist, add it
+        if (!$keyPosition || !$endOfLinePosition || !$oldLine) {
+          $str .= "{$envKey}={$envValue}\n";
         } else {
-            return true;
+          $str = str_replace($oldLine, "{$envKey}={$envValue}", $str);
         }
+      }
     }
+
+    $str = substr($str, 0, -1);
+    if (!file_put_contents($envFile, $str)) return false;
+    return true;
+  }
 }
 
-if (!function_exists('isDark')) {
-    function isDark($version)
-    {
-        if (strpos($version, "dark") !== false) {
-            return true;
-        } else {
-            return false;
-        }
+if (!function_exists('showAd')) {
+  function showAd($resolutionType)
+  {
+    $ad = Advertisement::where('resolution_type', $resolutionType)->inRandomOrder()->first();
+    $adsenseInfo = Basic::query()->select('google_adsense_publisher_id')->first();
+
+    if (!is_null($ad)) {
+      if ($resolutionType == 1) {
+        $maxWidth = '300px';
+        $maxHeight = '250px';
+      } else if ($resolutionType == 2) {
+        $maxWidth = '300px';
+        $maxHeight = '600px';
+      } else {
+        $maxWidth = '728px';
+        $maxHeight = '90px';
+      }
+
+      if ($ad->ad_type == 'banner') {
+        $markUp = '<a href="' . url($ad->url) . '" target="_blank" onclick="adView(' . $ad->id . ')" class="ad-banner">
+          <img data-src="' . asset('assets/img/advertisements/' . $ad->image) . '" alt="advertisement" style="width: ' . $maxWidth . '; height: ' . $maxHeight . ';" class="lazyload blur-up">
+        </a>';
+
+        return $markUp;
+      } else {
+        $markUp = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' . $adsenseInfo->google_adsense_publisher_id . '" crossorigin="anonymous"></script>
+        <ins class="adsbygoogle" style="display: block;" data-ad-client="' . $adsenseInfo->google_adsense_publisher_id . '" data-ad-slot="' . $ad->slot . '" data-ad-format="auto" data-full-width-responsive="true"></ins>
+        <script>
+          (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>';
+
+        return $markUp;
+      }
+    } else {
+      return;
     }
-}
-
-if (!function_exists('slug_create')) {
-    function slug_create($val)
-    {
-        $slug = preg_replace('/\s+/u', '-', trim($val));
-        $slug = str_replace("/", "", $slug);
-        $slug = str_replace("?", "", $slug);
-        return mb_strtolower($slug, 'UTF-8');
-    }
-}
-
-if (!function_exists('hex2rgb')) {
-    function hex2rgb($colour)
-    {
-        if ($colour[0] == '#') {
-            $colour = substr($colour, 1);
-        }
-        if (strlen($colour) == 6) {
-            list($r, $g, $b) = array($colour[0] . $colour[1], $colour[2] . $colour[3], $colour[4] . $colour[5]);
-        } elseif (strlen($colour) == 3) {
-            list($r, $g, $b) = array($colour[0] . $colour[0], $colour[1] . $colour[1], $colour[2] . $colour[2]);
-        } else {
-            return false;
-        }
-        $r = hexdec($r);
-        $g = hexdec($g);
-        $b = hexdec($b);
-        return array('red' => $r, 'green' => $g, 'blue' => $b);
-    }
-}
-
-if (!function_exists('getHref')) {
-    function getHref($link)
-    {
-        $href = "#";
-
-        if ($link["type"] == 'home') {
-            $href = route('front.index');
-        } else if ($link["type"] == 'profiles') {
-            $href = route('front.user.view');
-        } else if ($link["type"] == 'listings') {
-            $href = route('front.user.view');
-        } else if ($link["type"] == 'pricing') {
-            $href = route('front.pricing');
-        } else if ($link["type"] == 'faq') {
-            $href = route('front.faq.view');
-        } else if ($link["type"] == 'blog') {
-            $href = route('front.blogs');
-        } else if ($link["type"] == 'contact') {
-            $href = route('front.contact');
-        } else if ($link["type"] == 'templates') {
-            $href = route('front.templates.view');
-        } else if ($link["type"] == 'about') {
-            $href = route('front.about');
-        } else if ($link["type"] == 'custom') {
-            if (empty($link["href"])) {
-                $href = "#";
-            } else {
-                $href = $link["href"];
-            }
-        } else {
-            $pageid = (int) $link["type"];
-            $page = Page::find($pageid);
-            if (!empty($page)) {
-                $href = route('front.dynamicPage', [$page->slug]);
-            } else {
-                $href = "#";
-            }
-        }
-
-        return $href;
-    }
-}
-
-if (!function_exists('create_menu')) {
-    function create_menu($arr)
-    {
-        echo '<ul class="sub-menu">';
-
-        foreach ($arr["children"] as $el) {
-
-            // determine if the class is 'submenus' or not
-            $class = 'class="nav-item"';
-            if (array_key_exists("children", $el)) {
-                $class = 'class="nav-item submenus"';
-            }
-            // determine the href
-            $href = getHref($el);
-
-            echo '<li ' . $class . '>';
-            echo '<a  href="' . $href . '" target="' . $el["target"] . '">' . $el["text"] . '</a>';
-            if (array_key_exists("children", $el)) {
-                create_menu($el);
-            }
-            echo '</li>';
-        }
-        echo '</ul>';
-    }
-}
-
-if (!function_exists('format_price')) {
-
-    function format_price($value): string
-    {
-        if (session()->has('lang')) {
-            $currentLang = Language::where('code', session()
-                ->get('lang'))
-                ->first();
-        } else {
-            $currentLang = Language::where('is_default', 1)
-                ->first();
-        }
-        $bex = $currentLang->basic_extended;
-        if ($bex->base_currency_symbol_position == 'left') {
-            return $bex->base_currency_symbol . $value;
-        } else {
-            return  $value . $bex->base_currency_symbol;
-        }
-    }
-}
-
-
-if (!function_exists('currency_converter')) {
-    function currency_converter($value): string
-    {
-        $userCurrentCurr = app('userCurrentCurr');
-        $userDefaultCurrency = app('userDefaultCurrency');
-
-        if ($userDefaultCurrency->id != $userCurrentCurr->id) {
-            $price = $value * $userCurrentCurr->value;
-        } else {
-            $price = $value;
-        }
-        return number_format($price, 2, '.', '');
-    }
-}
-
-if (!function_exists('currency_converter_shipping')) {
-
-    function currency_converter_shipping($value, $shipping_id): string
-    {
-        $userCurrentCurr = app('userCurrentCurr');
-        $userDefaultCurrency = app('userDefaultCurrency');
-        if ($userDefaultCurrency->id != $userCurrentCurr->id) {
-            $price = $value * $userCurrentCurr->value;
-        } else {
-            $price = $value;
-        }
-        return round($price, 2);
-    }
-}
-
-if (!function_exists('change_curreny_value')) {
-    function change_curreny_value($value, $id, $previous_currency_id)
-    {
-        $currency = UserCurrency::where('id', $id)->first();
-        $previous_currency = UserCurrency::where('id', $previous_currency_id)->first();
-
-        //if selected currency and current currency not equal
-        if ($currency->id != $previous_currency_id) {
-            if ($previous_currency->is_default == 1) {
-                $price = $value * $currency->value;
-            } else {
-                $price = $value / $previous_currency->value;
-            }
-        } else {
-            $price = $value;
-        }
-        return round($price, 2);
-    }
-}
-
-if (!function_exists('currency_sign')) {
-
-    function currency_sign(): string
-    {
-        $userCurrentCurr = app('userCurrentCurr');
-        $curr_sign = $userCurrentCurr->symbol;
-        return $curr_sign;
-    }
-}
-
-if (!function_exists('currency_value')) {
-
-    function currency_value(): string
-    {
-        $userCurrentCurr = app('userCurrentCurr');
-
-        $curr_value = $userCurrentCurr->value;
-        return $curr_value;
-    }
-}
-
-if (!function_exists('currency_converter_user')) {
-
-    function currency_converter_user($value, $currency_id): string
-    {
-        if (empty($value)) {
-            $value = 0;
-        }
-        $data = UserCurrency::where('is_default', 1)->where('user_id',  Auth::guard('web')->user()->id)->first();
-        $userCurrentCurrID = $data->id;
-        $userCurrentCurrValue = $data->value;
-
-        $order_curr  = UserCurrency::where('id', $currency_id)->first();
-
-        if ($currency_id != $userCurrentCurrID) {
-            $price = ($value / $order_curr->value) * $userCurrentCurrValue;
-            $price_new = number_format($price, 2);
-        } else {
-            $price_new = $value;
-        }
-
-        return $price_new;
-    }
-}
-
-if (!function_exists('currency_sign_user')) {
-
-    function currency_sign_user(): string
-    {
-        $data = UserCurrency::where('is_default', 1)->where('user_id',  Auth::guard('web')->user()->id)->first();
-        $sign = $data->symbol;
-        return $sign;
-    }
-}
-if (!function_exists('user_currency')) {
-
-    function user_currency($id)
-    {
-        $user_id = getUser()->id;
-        $data = UserCurrency::where('id', $id)->select('symbol', 'symbol_position', 'user_id')->first();
-
-        if (is_null($data) || $data->user_id != $user_id) {
-            $data = UserCurrency::where([['is_default', 1], ['user_id', $user_id]])->select('symbol', 'symbol_position', 'user_id')->first();
-        }
-        return $data;
-    }
-}
-if (!function_exists('symbolPrice')) {
-    function symbolPrice($position, $symbol, $price)
-    {
-        if ($position == 'left') {
-            $value = $symbol . $price;
-        } else {
-            $value = $price . $symbol;
-        }
-
-        return $value;
-    }
-}
-
-if (!function_exists('textPrice')) {
-    function textPrice($position, $text, $price)
-    {
-        if ($position == 'left') {
-            $value = $text . ' ' . $price;
-        } else {
-            $value = $price . ' ' . $text;
-        }
-
-        return $value;
-    }
-}
-
-if (!function_exists('currencyPrice')) {
-
-    function currencyPrice($currency_id, $price)
-    {
-        $currency = UserCurrency::where('id', $currency_id)->first();
-        if ($currency) {
-            if ($currency->symbol_position == 'left') {
-                $value = $currency->symbol . $price;
-            } else {
-                $value = $price . $currency->symbol;
-            }
-            return $value;
-        }
-    }
-}
-
-if (!function_exists('currencyTextPrice')) {
-
-    function currencyTextPrice($currency_id, $price)
-    {
-        $currency = UserCurrency::where('id', $currency_id)->first();
-        if ($currency) {
-            if ($currency->text_position == 'left') {
-                $value = $currency->text . ' ' . $price;
-            } else {
-                $value = $price . ' ' . $currency->text;
-            }
-            return $value;
-        }
-    }
-}
-
-if (!function_exists('userSymbolPrice')) {
-
-    function userSymbolPrice($price, $position, $symbol)
-    {
-        if (is_null($price)) {
-            $price = 0;
-        }
-        if ($position == 'left') {
-            $value = $symbol . $price;
-        } else {
-            $value = $price . $symbol;
-        }
-        return $value;
-    }
-}
-
-
-
-if (!function_exists('getUserHref')) {
-    function getUserHref($link, $lang_id = null)
-    {
-        $href = "#";
-        if ($link["type"] == 'home') {
-            $href = route('front.user.detail.view', getParam());
-        } else if ($link["type"] == 'blog') {
-            $href = route('front.user.blogs', getParam());
-        } else if ($link["type"] == 'contact') {
-            $href = route('front.user.contact', getParam());
-        } else if ($link["type"] == 'about') {
-            $href = route('front.user.about', getParam());
-        } else if ($link["type"] == 'faq') {
-            $href = route('front.user.faq', getParam());
-        } else if ($link["type"] == 'shop') {
-            $href = route('front.user.shop', getParam());
-        } else if ($link["type"] == 'custom') {
-            if (empty($link["href"])) {
-                $href = "#";
-            } else {
-                $href = $link["href"];
-            }
-        } else {
-            $pageid = (int)$link["type"];
-            $page = UserPageContent::where([['page_id', $pageid], ['language_id', $lang_id]])->first();
-            if (!empty($page)) {
-                $href = route('front.user.custom.page', [getParam(), $page->slug]);
-            } else {
-                $href = "#";
-            }
-        }
-        return $href;
-    }
-}
-
-if (!function_exists('currency_converter_customer')) {
-
-    function currency_converter_customer($value, $order_currency_id): string
-    {
-        if (empty($value)) {
-            $value = 0;
-        }
-        $userCurrentCurr = app('userCurrentCurr');
-        $data = UserCurrency::find($userCurrentCurr->id);
-        $userCurrentCurrID = $data->id;
-        $userCurrentCurrValue = $data->value;
-
-        $order_curr  = UserCurrency::where('id', $order_currency_id)->first();
-
-        if ($order_currency_id != $userCurrentCurrID) {
-            $price = ($value / $order_curr->value) * $userCurrentCurrValue;
-            $price_new = round($price, 2);
-        } else {
-            $price_new = $value;
-        }
-
-        return $price_new;
-    }
-}
-
-if (!function_exists('reviewCount')) {
-
-    function reviewCount($id)
-    {
-        $data = UserItemReview::where('item_id', $id)->count();
-        return $data;
-    }
-}
-
-
-if (!function_exists('getParam')) {
-
-    function getParam()
-    {
-        $parsedUrl = parse_url(url()->current());
-        $host = str_replace("www.", "", $parsedUrl['host']);
-
-        // if it is path based URL, then return {username}
-        if (strpos($host, env('WEBSITE_HOST')) !== false && $host == env('WEBSITE_HOST')) {
-            $path = explode('/', $parsedUrl['path']);
-            return $path[1];
-        }
-
-        // if it is a subdomain / custom domain , then return the host (username.domain.ext / custom_domain.ext)
-        return $host;
-    }
-}
-
-// checks if 'current package has subdomain ?'
-
-if (!function_exists('cPackageHasSubdomain')) {
-    function cPackageHasSubdomain($user)
-    {
-        $currPackageFeatures = UserPermissionHelper::packagePermission($user->id);
-        $currPackageFeatures = json_decode($currPackageFeatures, true);
-
-        // if the current package does not contain subdomain
-        if (empty($currPackageFeatures) || !is_array($currPackageFeatures) || !in_array('Subdomain', $currPackageFeatures)) {
-            return false;
-        }
-        return true;
-    }
-}
-
-
-// checks if 'current package has custom domain ?'
-if (!function_exists('cPackageHasCdomain')) {
-    function cPackageHasCdomain($user)
-    {
-        $currPackageFeatures = UserPermissionHelper::packagePermission($user->id);
-        $currPackageFeatures = json_decode($currPackageFeatures, true);
-
-        if (empty($currPackageFeatures) || !is_array($currPackageFeatures) || !in_array('Custom Domain', $currPackageFeatures)) {
-            return false;
-        }
-
-        return true;
-    }
-}
-
-if (!function_exists('getCdomain')) {
-
-    function getCdomain($user)
-    {
-        $cdomains = $user->custom_domains()->where('status', 1);
-        return $cdomains->count() > 0 ? $cdomains->orderBy('id', 'DESC')->first()->requested_domain : false;
-    }
-}
-
-
-
-if (!function_exists('getUser')) {
-
-    function getUser()
-    {
-        $parsedUrl = parse_url(url()->current());
-
-        $host =  $parsedUrl['host'];
-
-        // if the current URL contains the website domain
-        if (strpos($host, env('WEBSITE_HOST')) !== false) {
-            $host = str_replace('www.', '', $host);
-            // if current URL is a path based URL
-            if ($host == env('WEBSITE_HOST')) {
-                $path = explode('/', $parsedUrl['path']);
-                $username = $path[1];
-            }
-            // if the current URL is a subdomain
-            else {
-                $hostArr = explode('.', $host);
-                $username = $hostArr[0];
-            }
-
-
-            if (($host == $username . '.' . env('WEBSITE_HOST')) || ($host . '/' . $username == env('WEBSITE_HOST') . '/' . $username)) {
-                $user = User::where('username', $username)
-                    ->where('status', 1)
-                    ->whereHas('memberships', function ($q) {
-                        $q->where('status', '=', 1)
-                            ->where('start_date', '<=', Carbon::now()->format('Y-m-d'))
-                            ->where('expire_date', '>=', Carbon::now()->format('Y-m-d'));
-                    })
-                    ->first();
-                    if(empty($user)){
-                        return view('errors.404');
-                    }
-
-                    if($user->online_status != 1){
-                      return view('errors.404');
-                    }
-
-                // if the current url is a subdomain
-                if ($host != env('WEBSITE_HOST')) {
-                    if (!cPackageHasSubdomain($user)) {
-                        return view('errors.404');
-                    }
-                }
-
-                return $user;
-            }
-        }
-
-        // Always include 'www.' at the begining of host
-        if (substr($host, 0, 4) == 'www.') {
-            $host = $host;
-        } else {
-            $host = 'www.' . $host;
-        }
-
-        $user = User::where('status', 1)
-            ->whereHas('user_custom_domains', function ($q) use ($host) {
-                $q->where('status', '=', 1)
-                    ->where(function ($query) use ($host) {
-                        $query->where('requested_domain', '=', $host)
-                            ->orWhere('requested_domain', '=', str_replace("www.", "", $host));
-                    });
-                // fetch the custom domain , if it matches 'with www.' URL or 'without www.' URL
-            })
-            ->whereHas('memberships', function ($q) {
-                $q->where('status', '=', 1)
-                    ->where('start_date', '<=', Carbon::now()->format('Y-m-d'))
-                    ->where('expire_date', '>=', Carbon::now()->format('Y-m-d'));
-            })->first();
-
-            if(empty($user)){
-                return view('errors.404');
-            }
-        if ($user->online_status != 1) {
-            return view('errors.404');
-        }
-
-        if (!cPackageHasCdomain($user)) {
-            return view('errors.404');
-        }
-
-        return $user;
-    }
-}
-
-if (!function_exists('getUserNullCheck')) {
-
-    function getUserNullCheck()
-    {
-        $parsedUrl = parse_url(url()->current());
-
-        $host =  $parsedUrl['host'];
-
-        // if the current URL contains the website domain
-        if (strpos($host, env('WEBSITE_HOST')) !== false) {
-            $host = str_replace('www.', '', $host);
-            // if current URL is a path based URL
-            if ($host == env('WEBSITE_HOST')) {
-                $path = explode('/', $parsedUrl['path']);
-                $username = $path[1];
-            }
-            // if the current URL is a subdomain
-            else {
-                $hostArr = explode('.', $host);
-                $username = $hostArr[0];
-            }
-
-
-            if (($host == $username . '.' . env('WEBSITE_HOST')) || ($host . '/' . $username == env('WEBSITE_HOST') . '/' . $username)) {
-                $user = User::where('username', $username)
-                    ->where('online_status', 1)
-                    ->where('status', 1)
-                    ->whereHas('memberships', function ($q) {
-                        $q->where('status', '=', 1)
-                            ->where('start_date', '<=', Carbon::now()->format('Y-m-d'))
-                            ->where('expire_date', '>=', Carbon::now()->format('Y-m-d'));
-                    })
-                    ->first();
-
-
-                // if the current url is a subdomain
-                if ($host != env('WEBSITE_HOST')) {
-                    if (!cPackageHasSubdomain($user)) {
-                        return view('errors.404');
-                    }
-                }
-
-                return $user;
-            }
-        }
-
-
-
-        // Always include 'www.' at the begining of host
-        if (substr($host, 0, 4) == 'www.') {
-            $host = $host;
-        } else {
-            $host = 'www.' . $host;
-        }
-
-        $user = User::where('online_status', 1)
-            ->where('status', 1)
-            ->whereHas('user_custom_domains', function ($q) use ($host) {
-                $q->where('status', '=', 1)
-                    ->where(function ($query) use ($host) {
-                        $query->where('requested_domain', '=', $host)
-                            ->orWhere('requested_domain', '=', str_replace("www.", "", $host));
-                    });
-                // fetch the custom domain , if it matches 'with www.' URL or 'without www.' URL
-            })
-            ->whereHas('memberships', function ($q) {
-                $q->where('status', '=', 1)
-                    ->where('start_date', '<=', Carbon::now()->format('Y-m-d'))
-                    ->where('expire_date', '>=', Carbon::now()->format('Y-m-d'));
-            })->firstOrFail();
-
-        if (!cPackageHasCdomain($user)) {
-            return view('errors.404');
-        }
-
-        return $user;
-    }
-}
-
-if (!function_exists('cartTotal')) {
-    function cartTotal()
-    {
-        $username = app('user')->username;
-        $total = 0;
-        if (session()->has('cart_' . $username) && !empty(session()->get('cart_' . $username))) {
-            $cart = session()->get('cart_' . $username);
-            $user_id = getUser()->id;
-            if (!is_null($cart) && is_array($cart)) {
-                $cart = array_filter($cart, function ($item) use ($user_id) {
-                    return $item['user_id'] == $user_id;
-                });
-                foreach ($cart as $key => $cartItem) {
-                    $total += $cartItem['total'];
-                }
-            }
-        }
-
-        return round($total, 2);
-    }
-}
-
-if (!function_exists('flashAmountStatus')) {
-    function flashAmountStatus($porduct_id, $current_price)
-    {
-        $now = Carbon::now()->format('Y-m-d H:i:s'); // Including seconds
-        $product = DB::table('user_items')
-            ->where([['user_items.flash', 1], ['id', $porduct_id]])
-            ->where(function ($query) use ($now) {
-                // 12-hour format handling
-                $query->orWhere([
-                    [DB::raw('CONCAT(user_items.start_date, " ", STR_TO_DATE(user_items.start_time, "%h:%i %p"))'), '<=', $now],
-                    [DB::raw('CONCAT(user_items.end_date, " ", STR_TO_DATE(user_items.end_time, "%h:%i %p"))'), '>=', $now],
-                ]);
-
-                // 24-hour format handling
-                $query->orWhere([
-                    [DB::raw('CONCAT(user_items.start_date, " ", user_items.start_time)'), '<=', $now],
-                    [DB::raw('CONCAT(user_items.end_date, " ", user_items.end_time)'), '>=', $now],
-                ]);
-            })->select('current_price', 'flash_amount')->first();
-
-        if ($product) {
-            $amount = $product->current_price - $product->current_price * ($product->flash_amount / 100);
-            $data = [
-                'amount' => $amount,
-                'status' => true,
-            ];
-        } else {
-            $amount = $current_price;
-            $data = [
-                'amount' => $amount,
-                'status' => false,
-            ];
-        }
-        return $data;
-    }
-}
-
-if (!function_exists('cartSubTotal')) {
-    function cartSubTotal()
-    {
-        $username = app('user')->username;
-        $coupon = session()->has('user_coupon_' . $username) && !empty(session()->get('user_coupon_' . $username)) ? session()->get('user_coupon_' . $username) : 0;
-        $cartTotal = cartTotal();
-        $subTotal = $cartTotal - $coupon;
-
-        return round($subTotal, 2);
-    }
+  }
 }
 
 if (!function_exists('onlyDigitalItemsInCart')) {
-    function onlyDigitalItemsInCart()
-    {
-        $username = app('user')->username;
-        $cart = session()->get('cart_' . $username, []);
-        if (!empty($cart)) {
-            foreach ($cart as $key => $cartItem) {
-                $item = UserItem::findorFail($cartItem["id"]);
-                if ($item->type == 'digital') {
-                    return true;
-                }
-            }
+  function onlyDigitalItemsInCart()
+  {
+    $cart = session()->get('productCart');
+    if (!empty($cart)) {
+      foreach ($cart as $key => $cartItem) {
+        if ($cartItem['type'] != 'digital') {
+          return false;
         }
-        return false;
+      }
     }
+    return true;
+  }
 }
-
-
 
 if (!function_exists('onlyDigitalItems')) {
-    function onlyDigitalItems($order)
-    {
+  function onlyDigitalItems($order)
+  {
 
-        $oitems = $order->orderitems;
-        foreach ($oitems as $key => $oitem) {
+    $oitems = $order->orderitems;
+    foreach ($oitems as $key => $oitem) {
 
-            if ($oitem->item->type != 'digital') {
-                return false;
-            }
-        }
-
-        return true;
+      if ($oitem->item->type != 'digital') {
+        return false;
+      }
     }
-}
-if (!function_exists('tax')) {
-    function tax()
-    {
-        if (Session::has('myfatoorah_user')) {
-            $user = Session::get('myfatoorah_user');
-        } else {
-            $user = getUser();
-        }
-        $bex = UserShopSetting::where('user_id', $user->id)->first();
-        $tax = $bex->tax;
-        if (session()->has('cart_' . $user->username) && !empty(session()->get('cart_' . $user->username))) {
-            $tax = (cartSubTotal() * $tax) / 100;
-        }
 
-        return round($tax, 2);
-    }
-}
-if (!function_exists('tax_percentage')) {
-    function tax_percentage()
-    {
-        if (Session::has('myfatoorah_user')) {
-            $user = Session::get('myfatoorah_user');
-        } else {
-            $user = getUser();
-        }
-        $bex = UserShopSetting::where('user_id', $user->id)->first();
-        return $bex->tax;
-    }
+    return true;
+  }
 }
 
+if (!function_exists('get_href')) {
+  function get_href($data)
+  {
+    $link_href = '';
 
-if (!function_exists('coupon')) {
-    function coupon()
-    {
-        return session()->has('coupon') && !empty(session()->get('coupon')) ? round(session()->get('coupon'), 2) : 0.00;
+    if ($data->type == 'home') {
+      $link_href = route('index');
+    } else if ($data->type == 'vendors') {
+      $link_href = route('frontend.vendors');
+    } else if ($data->type == 'shop') {
+      $link_href = route('shop.products');
+    } else if ($data->type == 'cart') {
+      $link_href = route('shop.cart');
+    } else if ($data->type == 'checkout') {
+      $link_href = route('shop.checkout');
+    } else if ($data->type == 'blog') {
+      $link_href = route('blog');
+    } else if ($data->type == 'faq') {
+      $link_href = route('faq');
+    } else if ($data->type == 'contact') {
+      $link_href = route('contact');
+    } else if ($data->type == 'about-us') {
+      $link_href = route('about_us');
+    } else if ($data->type == 'custom') {
+      /**
+       * this menu has created using menu-builder from the admin panel.
+       * this menu will be used as drop-down or to link any outside url to this system.
+       */
+      if ($data->href == '') {
+        $link_href = '#';
+      } else {
+        $link_href = $data->href;
+      }
+    } else {
+      // this menu is for the custom page which has been created from the admin panel.
+      $link_href = route('dynamic_page', ['slug' => $data->type]);
     }
+
+    return $link_href;
+  }
 }
 
-
-if (!function_exists('detailsUrl')) {
-
-    function detailsUrl($user)
-    {
-        return '//' . env('WEBSITE_HOST') . '/' . $user->username;
+if (!function_exists('format_price')) {
+  function format_price($value): string
+  {
+    $bs = Basic::first();
+    if ($bs->base_currency_symbol_position == 'left') {
+      return $bs->base_currency_symbol . $value;
+    } else {
+      return $value . $bs->base_currency_symbol;
     }
+  }
 }
 
-if (!function_exists('ProductCountByCategory')) {
-
-    function ProductCountByCategory($language_id, $category_id)
-    {
-        return UserItemContent::where([['language_id', $language_id], ['category_id', $category_id]])->count();
+if (!function_exists('symbolPrice')) {
+  function symbolPrice($price)
+  {
+    $basic = Basic::where('uniqid', 12345)->select('base_currency_symbol_position', 'base_currency_symbol')->first();
+    if ($basic->base_currency_symbol_position == 'left') {
+      $data = $basic->base_currency_symbol . round($price, 2);
+      return str_replace(' ', '', $data);
+    } elseif ($basic->base_currency_symbol_position == 'right') {
+      $data = round($price, 2) . $basic->base_currency_symbol;
+      return str_replace(' ', '', $data);
     }
-}
-if (!function_exists('hexToRgba')) {
-
-    function hexToRgba($hex, $alpha = .5)
-    {
-        // Remove the hash at the start if it's there
-        $hex = ltrim($hex, '#');
-
-        // Parse the hex color
-        if (strlen($hex) == 6) {
-            list($r, $g, $b) = sscanf($hex, "%02x%02x%02x");
-        } elseif (strlen($hex) == 3) {
-            list($r, $g, $b) = sscanf($hex, "%1x%1x%1x");
-            $r = $r * 17;
-            $g = $g * 17;
-            $b = $b * 17;
-        } else {
-            return '10, 71, 46';
-        }
-
-        // Ensure alpha is between 0 and 1
-        $alpha = min(max($alpha, 0), 1);
-
-        // Return the rgba color code
-        return "$r, $g, $b";
-    }
-}
-
-if (!function_exists('paytabInfo')) {
-    function paytabInfo($type, $user_id = null)
-    {
-        if ($type == 'user') {
-            $paytabs = UserPaymentGeteway::where([['user_id', $user_id], ['keyword', 'paytabs']])->first();
-        } else {
-            $paytabs = PaymentGateway::where('keyword', 'paytabs')->first();
-        }
-        $paytabsInfo = json_decode($paytabs->information, true);
-        if ($paytabsInfo['country'] == 'global') {
-            $currency = 'USD';
-        } elseif ($paytabsInfo['country'] == 'sa') {
-            $currency = 'SAR';
-        } elseif ($paytabsInfo['country'] == 'uae') {
-            $currency = 'AED';
-        } elseif ($paytabsInfo['country'] == 'egypt') {
-            $currency = 'EGP';
-        } elseif ($paytabsInfo['country'] == 'oman') {
-            $currency = 'OMR';
-        } elseif ($paytabsInfo['country'] == 'jordan') {
-            $currency = 'JOD';
-        } elseif ($paytabsInfo['country'] == 'iraq') {
-            $currency = 'IQD';
-        } else {
-            $currency = 'USD';
-        }
-        return [
-            'server_key' => $paytabsInfo['server_key'],
-            'profile_id' => $paytabsInfo['profile_id'],
-            'url'        => $paytabsInfo['api_endpoint'],
-            'currency'   => $currency,
-        ];
-    }
-
-
-    function check_variation($item_id)
-    {
-        $product_variations = ProductVariation::where('item_id', $item_id)->count();
-        return $product_variations;
-    }
-}
-
-if (!function_exists('detectTextDirection')) {
-    function detectTextDirection($text)
-    {
-        $length = mb_strlen($text, 'UTF-8');
-        $rtlCount = 0;
-        $ltrCount = 0;
-
-        for ($i = 0; $i < $length; $i++) {
-            $char = mb_substr($text, $i, 1, 'UTF-8');
-            $direction = IntlChar::charDirection($char);
-
-            if (
-                $direction == IntlChar::CHAR_DIRECTION_RIGHT_TO_LEFT
-                || $direction == IntlChar::CHAR_DIRECTION_RIGHT_TO_LEFT_ARABIC
-                || $direction == IntlChar::CHAR_DIRECTION_RIGHT_TO_LEFT_EMBEDDING
-                || $direction == IntlChar::CHAR_DIRECTION_RIGHT_TO_LEFT_OVERRIDE
-            ) {
-                $rtlCount++;
-            } else {
-                $ltrCount++;
-            }
-        }
-
-        if ($rtlCount > $ltrCount) {
-            return 'rtl'; // Right-to-left
-        } elseif ($ltrCount > $rtlCount) {
-            return 'ltr'; // Left-to-right
-        } else {
-            return 'rtl'; // If both counts are equal, or if text is empty
-        }
-    }
-}
-
-if (!function_exists('flasSaleActive')) {
-    function flasSaleActive($end_date, $end_time)
-    {
-        $date = Carbon::parse($end_date . ' ' . $end_time);
-        if ($date->isPast()) {
-            return 'deactive';
-        } else {
-            return 'active';
-        }
-    }
-}
-if (!function_exists('VariationStock')) {
-    function VariationStock($item_id)
-    {
-        $product_variations = App\Models\User\ProductVariation::where([
-            ['item_id', $item_id],
-        ])->get();
-        $varitaion_stock = [];
-        if (count($product_variations) > 0) {
-            $varitaion_stock['has_variation'] = 'yes';
-            foreach ($product_variations as $product_variation) {
-                $product_variation_options = App\Models\User\ProductVariantOption::where(
-                    'product_variation_id',
-                    $product_variation->id,
-                )->get();
-                foreach ($product_variation_options as $product_variation_option) {
-                    if ($product_variation_option->stock > 0) {
-                        $varitaion_stock['stock'] = 'yes';
-                        break;
-                    } else {
-                        $varitaion_stock['stock'] = 'no';
-                        continue;
-                    }
-                }
-            }
-        } else {
-            $varitaion_stock['has_variation'] = 'no';
-            $varitaion_stock['stock'] = 'no';
-        }
-        return $varitaion_stock;
-    }
+  }
 }
 
 if (!function_exists('checkWishList')) {
-    function checkWishList($item_id, $customer_id)
-    {
-        $check = CustomerWishList::where([['customer_id', $customer_id], ['item_id', $item_id]])->first();
-        if ($check) {
-            return true;
-        } else {
-            return false;
-        }
+  function checkWishList($service_id, $user_id)
+  {
+    $check = App\Models\Services\Wishlist::where('service_id', $service_id)
+      ->where('user_id', $user_id)
+      ->first();
+    if ($check) {
+      return true;
+    } else {
+      return false;
     }
+  }
+}
+
+if (!function_exists('vendorTotalAddedService')) {
+  function vendorTotalAddedService($vendor_id)
+  {
+    $total = Services::where('vendor_id', $vendor_id)->count();
+    return $total;
+  }
+}
+
+if (!function_exists('zoomCreate')) {
+  function zoomCreate($data)
+  {
+    if ($data['zoom_status'] == 1) {
+      $permission = $data['vendor_id'] != 0 ? VendorPermissionHelper::packagePermission($data['vendor_id']) : null;
+
+      if (!$permission || $permission->zoom_meeting_status == 1) {
+        (new ZoomController())->createMeeting($data);
+      }
+    }
+  }
+}
+
+if (!function_exists('calendarEventCreate')) {
+  function calendarEventCreate($data)
+  {
+    $staffCalender = StaffPlugin::where('staff_id', $data['staff_id'])->select('google_calendar', 'calender_id')->first();
+
+    if ($data['calender_status'] == 1) {
+      $permission = $data['vendor_id'] != 0 ? VendorPermissionHelper::packagePermission($data['vendor_id']) : null;
+
+      if (!$permission || $permission->calendar_status == 1) {
+        (new GoogleCalendarController())->createEvent($data);
+        if (!empty($staffCalender)) {
+          if (!empty($staffCalender->google_calendar) && !empty($staffCalender->calender_id)) {
+            (new StaffCalendarController())->createEvent($data);
+          }
+        }
+      }
+    }
+  }
 }
 
 
-if (!function_exists('canonicalUrl')) {
-    function canonicalUrl()
+if (!function_exists('vendorTotalAddedStaff')) {
+  function vendorTotalAddedStaff($vendor_id)
+  {
+    $total = Staff::where('vendor_id', $vendor_id)->whereNull('role')->get()->count();
+    return $total;
+  }
+}
+if (!function_exists('vendorTotalSliderImage')) {
+  function vendorTotalSliderImage($serviceId)
+  {
+
+    $total = ServiceImage::where('service_id', $serviceId)->count();
+    return $total;
+  }
+}
+
+
+if (!function_exists('store_transaction')) {
+  function store_transaction($data)
+  {
+    $prev_admin_profit = DB::table('basic_settings')->pluck('admin_profit')->first();
+
+    if ($data['transaction_type'] == 'featured_service_reject') {
+      $admin_profit = $data['actual_total'] - $prev_admin_profit;
+      $refundAmount = $data['actual_total'];
+    } else {
+      $admin_profit = $data['actual_total'] + $prev_admin_profit;
+      $refundAmount = 0;
+    }
+
+    //admin profit update on basic_settings start
+    DB::table('basic_settings')->updateOrInsert(
+      ['uniqid' => 12345],
+      [
+        'admin_profit' => $admin_profit,
+      ]
+    );
+    $actaulTotal = null;
+    Transaction::create([
+      'transaction_id' => time(),
+      'actual_total' => $data['transaction_type'] == 'featured_service_reject' ? $actaulTotal : $data['actual_total'],
+      'transaction_type' => $data['transaction_type'],
+      'vendor_id' => $data['vendor_id'],
+      'payment_status' => $data['payment_status'],
+      'payment_method' => $data['payment_method'],
+      'pre_balance' => $data['pre_balance'],
+      'admin_profit' => $data['transaction_type'] == 'featured_service_reject' ? $actaulTotal : $data['admin_profit'],
+      'featured_refund' => $refundAmount,
+      'after_balance' => $data['after_balance'],
+      'currency_symbol' => $data['currency_symbol'],
+      'currency_symbol_position' => $data['currency_symbol_position'],
+    ]);
+  }
+}
+
+//check service id's from appointment
+if (!function_exists('checkService')) {
+  function checkService($id)
+  {
+    $hasService = Services::where('id', $id)
+      ->whereHas('appointment', function ($query) {
+        $query->where('order_status', 'pending');
+      })
+      ->count();
+
+    return $hasService;
+  }
+}
+
+if (!function_exists('checkMembersipExpireDate')) {
+  function checkMembersipExpireDate($vendor_id)
+  {
+    $currentPackage = VendorPermissionHelper::packagePermission($vendor_id);
+    if ($currentPackage != '[]' && $vendor_id != 0) {
+      $nextPackage = VendorPermissionHelper::nextPackage($vendor_id);
+      if ($nextPackage == null) {
+        $membership = VendorPermissionHelper::currMembOrPending($vendor_id);
+      } else {
+        $membership = VendorPermissionHelper::nextMembership($vendor_id);
+      }
+      $expireDate = $membership->expire_date;
+      return $expireDate;
+    }
+  }
+}
+
+//appoitntment payment confirmation mail
+if (!function_exists('payemntStatusMail')) {
+  function payemntStatusMail($type, $id)
+  {
+    $misc = new MiscellaneousController();
+    $language = $misc->getLanguage();
+
+    $booking = ServiceBooking::select('id', 'service_id', 'currency_symbol', 'customer_paid', 'customer_name', 'customer_email', 'start_date', 'end_date', 'created_at', 'booking_date')->findOrFail($id);
+
+    // get the mail template info from db
+    $mailTemplate = MailTemplate::query()->where('mail_type', '=', $type)->first();
+    $mailData['subject'] = $mailTemplate->mail_subject;
+    $mailBody = $mailTemplate->mail_body;
+
+
+    $serviceInfo = ServiceContent::query()
+      ->where('service_id', $booking->service_id)
+      ->where('language_id', $language->id)
+      ->select('name', 'slug')
+      ->firstOrFail();
+
+    //service title with ther details link
+    $url = route('frontend.service.details', ['slug' => $serviceInfo->slug, 'id' => $booking->service_id]);
+    $serviceName = truncateString($serviceInfo->name, 50);
+
+    // get the website title info from db
+    $info = Basic::select('website_title')->first();
+
+    $price = $booking->currency_symbol . $booking->customer_paid;
+    $appointmentTime = $booking->start_date . ' to ' . $booking->end_date;
+
+    // replacing with actual data
+    $mailBody = str_replace('{service_title}', "<a href=" . $url . ">$serviceName</a>", $mailBody);
+    $mailBody = str_replace('{customer_name}', $booking->customer_name, $mailBody);
+    $mailBody = str_replace('{booking_date}', date_format($booking->created_at, 'M d, Y'), $mailBody);
+    $mailBody = str_replace('{appointment_date}', Carbon::parse($booking->booking_date)->format('M d, Y'), $mailBody);
+    $mailBody = str_replace('{appointment_time}', $appointmentTime, $mailBody);
+    $mailBody = str_replace('{website_title}', $info->website_title, $mailBody);
+    $mailBody = str_replace('{price}', $price, $mailBody);
+
+    $mailData['body'] = $mailBody;
+    $mailData['recipient'] = $booking->customer_email;
+
+    BasicMailer::sendMail($mailData);
+
+    return;
+  }
+}
+
+if (!function_exists('getAttributes')) {
+  function getAttributes($datas) {}
+}
+
+if (!function_exists('paytabInfo')) {
+  function paytabInfo()
+  {
+    $paytabs = OnlineGateway::where('keyword', 'paytabs')->first();
+
+    $paytabsInfo = json_decode($paytabs->information, true);
+    if ($paytabsInfo['country'] == 'global') {
+      $currency = 'USD';
+    } elseif ($paytabsInfo['country'] == 'sa') {
+      $currency = 'SAR';
+    } elseif ($paytabsInfo['country'] == 'uae') {
+      $currency = 'AED';
+    } elseif ($paytabsInfo['country'] == 'egypt') {
+      $currency = 'EGP';
+    } elseif ($paytabsInfo['country'] == 'oman') {
+      $currency = 'OMR';
+    } elseif ($paytabsInfo['country'] == 'jordan') {
+      $currency = 'JOD';
+    } elseif ($paytabsInfo['country'] == 'iraq') {
+      $currency = 'IQD';
+    } else {
+      $currency = 'USD';
+    }
+    return [
+      'server_key' => $paytabsInfo['server_key'],
+      'profile_id' => $paytabsInfo['profile_id'],
+      'url'        => $paytabsInfo['api_endpoint'],
+      'currency'   => $currency,
+    ];
+  }
+}
+
+if (!function_exists('custom_format_price')) {
+    function custom_format_price($amount, $text, $position)
     {
-        $user = getUser();
+        $formattedAmount = number_format((float) $amount, 2, '.', ',');
 
-        if ($user->subdomain_status == 1) {
-            $domain = getParam() . '.' . env('WEBSITE_HOST');
+        if ($position === 'left') {
+            return $text . $formattedAmount;
         } else {
-            $domain = env('WEBSITE_HOST');
+            return $formattedAmount . $text;
         }
-
-        // check if the user has a custom domain
-        if (getCdomain($user) !== false) {
-            $domain = getCdomain($user);
-        }
-
-        if (!preg_match('/^https?:\/\//', $domain)) {
-            // current request's scheme (http or https) to the domain
-            $scheme = request()->getScheme() . '://';
-            $domain = $scheme . ltrim($domain, '/');
-        }
-
-        //current path and decode URL-encoded characters
-        $path = urldecode(request()->path());
-
-        if ($user->subdomain_status == 1 || getCdomain($user) !== false) {
-            $subdomain = getParam();
-            $pathSegments = explode('/', $path);
-            if ($pathSegments[0] === $subdomain) {
-                array_shift($pathSegments);
-                $path = implode('/', $pathSegments);
-            }
-        }
-
-        $path = str_replace(['–', ',', ' '], '-', $path);
-        $path = preg_replace('/-+/', '-', $path);
-        $path = strtolower($path);
-
-        $canonicalUrl = rtrim($domain, '/') . '/' . ltrim($path, '/');
-        return $canonicalUrl;
     }
 }

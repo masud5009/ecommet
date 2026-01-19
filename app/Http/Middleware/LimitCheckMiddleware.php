@@ -2,224 +2,147 @@
 
 namespace App\Http\Middleware;
 
-use App\Http\Helpers\LimitCheck;
-use App\Http\Helpers\UserPermissionHelper;
+use App\Http\Helpers\CheckLimitHelper;
+use App\Http\Helpers\VendorPermissionHelper;
+use App\Models\Staff\Staff;
+use App\Models\Vendor;
+use Auth;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class LimitCheckMiddleware
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
-     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
-     */
-    public function handle(Request $request, Closure $next, $feature = null, $method = null, $type = null)
-    {
-        if (Auth::check()) {
-            $user = Auth::user();
-            $permissions =  UserPermissionHelper::currentPackagePermission($user->id);
-            $downgradeText = __('Your feature limit is over or downgraded!');
-            $featuresCount = LimitCheck::packageFeaturesCount($user->id);
-            if ($method == 'store') {
-                //for items
-                if ($feature == 'items') {
-                    if ($permissions->product_limit > $featuresCount['items'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for categories
-                if ($feature == 'categories') {
-                    if ($permissions->categories_limit > $featuresCount['categories'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for subcategories
-                if ($feature == 'subcategories') {
-                    if ($permissions->subcategories_limit > $featuresCount['subcategories'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for languages
-                if ($feature == 'languages') {
-                    if ($permissions->language_limit > $featuresCount['languages'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for custome_page
-                if ($feature == 'custome_page') {
-                    if ($permissions->number_of_custom_page > $featuresCount['custome_page'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for blogs
-                if ($feature == 'blogs') {
-                    if ($permissions->post_limit > $featuresCount['blogs'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-            }
-            if ($method == 'update') {
-                //for items
-                if ($feature == 'items') {
-                    if ($permissions->product_limit >= $featuresCount['items'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for categories
-                if ($feature == 'categories') {
-                    if ($permissions->categories_limit >= $featuresCount['categories'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for subcategories
-                if ($feature == 'subcategories') {
-                    if ($permissions->subcategories_limit >= $featuresCount['subcategories'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for languages
-                if ($feature == 'languages') {
-                    if ($permissions->language_limit >= $featuresCount['languages'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for custome_page
-                if ($feature == 'custome_page') {
-                    if ($permissions->number_of_custom_page >= $featuresCount['custome_page'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-                //for blogs
-                if ($feature == 'blogs') {
-                    if ($permissions->post_limit >= $featuresCount['blogs'] && $this->checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)) {
-                        return $next($request);
-                    } else {
-                        if ($type == 'without_ajax') {
-                            session()->put('modal-show', true);
-                            return redirect()->back()->with('warning', $downgradeText);
-                        } else {
-                            return response()->json('downgrade');
-                        }
-                    }
-                }
-            }
-        }
+  /**
+   * Handle an incoming request.
+   *
+   * @param  \Illuminate\Http\Request  $request
+   * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
+   * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+   */
+  public function handle(Request $request, Closure $next, $feature = null, $method = null, $type = null)
+  {
+
+    if (Auth::guard('vendor')->check()) {
+      $vendor_id = Auth::guard('vendor')->user()->id;
+    } elseif (Auth::guard('staff')->check()) {
+      $staffId = Auth::guard('staff')->user()->id;
+      $staff = Staff::select('vendor_id')->findOrFail($staffId);
+      $vendor_id = $staff->vendor_id;
     }
 
-    private function checkFeaturesNotDowngraded($feature, $permissions, $featuresCount)
-    {
-        $response = true;
-        if ($feature != 'items') {
-            if ($permissions->product_limit < $featuresCount['items']) {
-                return  $response = false;
+    if ($vendor_id != 0) {
+
+      $package = VendorPermissionHelper::currentPackagePermission($vendor_id);
+
+      $vendor = Vendor::find($vendor_id);
+
+      if ($type == "downgrade" && empty($package)) {
+        return redirect()->back()->with('warning', __('Please buy a package to use this panel!'));
+      }
+      if (empty($package)) {
+        return response()->json('empty_package');
+      }
+
+      $vendorFeaturesCount = CheckLimitHelper::vendorFeaturesCount($vendor->id);
+
+      if ($method == 'store') {
+        //services
+        if ($feature == 'service') {
+          if ($package->number_of_service_add > $vendorFeaturesCount['services'] && $this->checkFeaturesNotDowngraded($feature, $package, $vendorFeaturesCount)) {
+            return $next($request);
+          } else {
+            if ($type == 'downgrade') {
+              session()->put('modal-show', true);
+              return redirect()->back()->with('warning', __('Limit is reached of exceeded!'));
+            } elseif ($type == 'staff_downgrade') {
+              return redirect()->back()->with('warning', __('Something went wrong. Please contact with your owner!'));
+            } elseif ($type == 'staff_downgrade_js') {
+              return response()->json('staff_downgrad_js');
+            } else {
+              return response()->json('downgrade');
             }
+          }
         }
-        if ($feature != 'categories') {
-            if ($permissions->categories_limit < $featuresCount['categories']) {
-                return  $response = false;
+
+        //staffs
+        if ($feature == 'staff') {
+          if ($package->staff_limit > $vendorFeaturesCount['staffs'] && $this->checkFeaturesNotDowngraded($feature, $package, $vendorFeaturesCount)) {
+            return $next($request);
+          } else {
+            if ($type == 'downgrade') {
+              session()->put('modal-show', true);
+              return redirect()->back()->with('warning', __('Limit is reached of exceeded!'));
+            } elseif ($type == 'staff_downgrade') {
+              return redirect()->back()->with('warning', __('Something went wrong. Please contact with your owner!'));
+            } else {
+              return response()->json('downgrade');
             }
+          }
         }
-        if ($feature != 'subcategories') {
-            if ($permissions->subcategories_limit < $featuresCount['subcategories']) {
-                return  $response = false;
+      }
+
+      if ($method == 'update') {
+        //service
+        if ($feature == 'service') {
+          if ($package->number_of_service_add >= $vendorFeaturesCount['services'] && $this->checkFeaturesNotDowngraded($feature, $package, $vendorFeaturesCount)) {
+            return $next($request);
+          } else {
+            if ($type == 'downgrade') {
+              session()->put('modal-show', true);
+              return redirect()->back()->with('warning', __('Limit is reached of exceeded!'));
+            } elseif ($type == 'staff_downgrade') {
+              return redirect()->back()->with('warning', __('Something went wrong. Please contact with your owner!'));
+            } elseif ($type == 'staff_downgrade_js') {
+              return response()->json('staff_downgrad_js');
+            } else {
+              return response()->json('downgrade');
             }
+          }
         }
-        if ($feature != 'languages') {
-            if ($permissions->language_limit < $featuresCount['languages']) {
-                return  $response = false;
+
+        //staff
+        if ($feature == 'staff') {
+          if ($package->staff_limit >= $vendorFeaturesCount['staffs'] && $this->checkFeaturesNotDowngraded($feature, $package, $vendorFeaturesCount)) {
+            return $next($request);
+          } else {
+            if ($type == 'downgrade') {
+              session()->put('modal-show', true);
+              return redirect()->back()->with('warning', __('Limit is reached of exceeded!'));
+            } elseif ($type == 'staff_downgrade') {
+              return redirect()->back()->with('warning', __('Something went wrong. Please contact with your owner!'));
+            } else {
+              return response()->json('downgrade');
             }
+          }
         }
-        if ($feature != 'custome_page') {
-            if ($permissions->number_of_custom_page < $featuresCount['custome_page']) {
-                return  $response = false;
-            }
-        }
-        if ($feature != 'blogs') {
-            if ($permissions->post_limit < $featuresCount['blogs']) {
-                return  $response = false;
-            }
-        }
-        return $response;
+      }
+    } else {
+      return $next($request);
     }
+  }
+
+  private function checkFeaturesNotDowngraded($feature, $package, $vendorFeaturesCount)
+  {
+    $response = true;
+
+    if ($feature != 'service') {
+      if ($package->number_of_service_add < $vendorFeaturesCount['services']) {
+        return  $response = false;
+      }
+    }
+
+    if ($feature != 'image') {
+      if ($vendorFeaturesCount['images'] > 0) {
+        return  $response = false;
+      }
+    }
+
+    if ($feature != 'staff') {
+      if ($package->staff_limit < $vendorFeaturesCount['staffs']) {
+        return  $response = false;
+      }
+    }
+
+    return $response;
+  }
 }

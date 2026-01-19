@@ -13,22 +13,18 @@ use function strtoupper;
  *
  * Holds Currency specific data.
  *
- * @phpstan-immutable
+ * @psalm-immutable
  */
 final class Currency implements JsonSerializable
 {
     /**
      * Currency code.
      *
-     * @phpstan-var non-empty-string
+     * @psalm-var non-empty-string
      */
     private string $code;
 
-    /**
-     * @phpstan-param non-empty-string $code
-     *
-     * @phpstan-pure
-     */
+    /** @psalm-param non-empty-string $code */
     public function __construct(string $code)
     {
         $this->code = strtoupper($code);
@@ -37,7 +33,7 @@ final class Currency implements JsonSerializable
     /**
      * Returns the currency code.
      *
-     * @phpstan-return non-empty-string
+     * @psalm-return non-empty-string
      */
     public function getCode(): string
     {

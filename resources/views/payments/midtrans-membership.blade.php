@@ -11,7 +11,7 @@
 <body>
   <button class="btn btn-primary" id="pay-button" style="display: none">Pay Now</button>
 
-  <script src="{{ asset('assets/front/js/jquery.min.js') }}"></script>
+  <script src="{{ asset('assets/frontend/js/vendors/jquery.min.js') }}"></script>
   @if ($is_production == 0)
     <script src="https://app.midtrans.com/snap/snap.js" data-client-key="{{ $client_key }}"></script>
   @else

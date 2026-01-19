@@ -1,53 +1,70 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html>
+  <head>
+    {{-- required meta tags --}}
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-<head>
-  <meta charset="utf-8">
-  <meta content='width=device-width, initial-scale=1.0, shrink-to-fit=no' name='viewport' />
-  <title>{{ $bs->website_title }}</title>
-  <link rel="icon" href="{{ asset('assets/front/img/' . $bs->favicon) }}">
-  <link rel="stylesheet" href="{{ asset('assets/admin/css/bootstrap.min.css') }}">
-  <link rel="stylesheet" href="{{ asset('assets/admin/css/login.css') }}">
-</head>
+    {{-- title --}}
+    <title>{{ __('Admin Login') . ' | ' . $websiteInfo->website_title }}</title>
 
-<body>
-  <div class="login-page">
-    <div class="text-center mb-4">
-      <img class="login-logo" src="{{ asset('assets/front/img/' . $bs->logo) }}" alt="">
-    </div>
-    <div class="form">
-      @if (session()->has('alert'))
-        <div class="alert alert-danger fade show" role="alert">
-          <strong>{{ __('Oops') . '!' }}</strong> {{ session('alert') }}
+    {{-- fav icon --}}
+    <link rel="shortcut icon" type="image/png" href="{{ asset('assets/img/' . $websiteInfo->favicon) }}">
+
+    {{-- bootstrap css --}}
+    <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}">
+
+    {{-- login css --}}
+    <link rel="stylesheet" href="{{ asset('assets/css/admin-login.css') }}">
+  </head>
+
+  <body>
+    {{-- login form start --}}
+    <div class="login-page">
+      @if (!empty($websiteInfo->logo))
+        <div class="text-center mb-4">
+          <img class="login-logo" src="{{ asset('assets/img/' . $websiteInfo->logo) }}" alt="logo">
         </div>
       @endif
-      <form class="login-form" action="{{ route('admin.auth') }}" method="POST">
-        @csrf
-        <input type="text" name="username" placeholder="{{ __('username') }}"
-          value="{{ env('DEMO_MODE') == 'active' ? 'admin' : '' }}" />
-        @if ($errors->has('username'))
-          <p class="text-danger text-left">{{ $errors->first('username') }}</p>
+
+      <div class="form">
+        @if (session()->has('alert'))
+          <div class="alert alert-danger fade show" role="alert">
+            <strong>{{ session('alert') }}</strong>
+          </div>
         @endif
-        <input type="password" name="password" placeholder="{{ __('password') }}" value="{{ env('DEMO_MODE') == 'active' ? 'admin' : '' }}" />
-        @if ($errors->has('password'))
-          <p class="text-danger text-left">{{ $errors->first('password') }}</p>
-        @endif
-        <button type="submit">{{ __('login') }}</button>
-      </form>
-      <a class="forget-link" href="{{ route('admin.forget.form') }}">{{ __('Forgot Password / Username') . '?' }}</a>
+
+        <form class="login-form" action="{{ route('admin.auth') }}" method="POST">
+          @csrf
+          <input type="text" name="username" placeholder="{{ __('Enter Username') }}"/>
+          @if ($errors->has('username'))
+            <p class="text-danger text-left">{{ $errors->first('username') }}</p>
+          @endif
+
+          <input type="password" name="password" placeholder="{{ __('Enter Password') }}"/>
+          @if ($errors->has('password'))
+            <p class="text-danger text-left">{{ $errors->first('password') }}</p>
+          @endif
+
+          <button type="submit" class="w-100">{{ __('login') }}</button>
+        </form>
+
+        <a class="forget-link" href="{{ route('admin.forget_password') }}">
+          {{ __('Forget Password or Username?') }}
+        </a>
+      </div>
     </div>
-  </div>
+    {{-- login form end --}}
 
 
-  <!-- jquery js -->
-  <script src="{{ asset('assets/front/js/jquery.min.js') }}"></script>
-  <!-- popper js -->
-  <script src="{{ asset('assets/front/js/popper.min.js') }}"></script>
-  <!-- bootstrap js -->
-  <script src="{{ asset('assets/front/js/bootstrap.min.js') }}"></script>
-  <!-- Bootstrap Notify -->
-  <script src="{{ asset('assets/admin/js/plugin/bootstrap-notify/bootstrap-notify.min.js') }}"></script>
+    {{-- jQuery --}}
+    <script src="{{ asset('assets/js/jquery-3.4.1.min.js') }}"></script>
 
-</body>
+    {{-- popper js --}}
+    <script src="{{ asset('assets/js/popper.min.js') }}"></script>
 
+    {{-- bootstrap js --}}
+    <script src="{{ asset('assets/js/bootstrap.min.js') }}"></script>
+  </body>
 </html>

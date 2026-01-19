@@ -18,13 +18,14 @@ use function substr;
  */
 final class DecimalMoneyFormatter implements MoneyFormatter
 {
-    public function __construct(private readonly Currencies $currencies)
+    private Currencies $currencies;
+
+    public function __construct(Currencies $currencies)
     {
+        $this->currencies = $currencies;
     }
 
-    /**
-     * @phpstan-return numeric-string
-     */
+    /** @psalm-return numeric-string */
     public function format(Money $money): string
     {
         $valueBase = $money->getAmount();
@@ -54,6 +55,7 @@ final class DecimalMoneyFormatter implements MoneyFormatter
 
         assert($formatted !== '');
 
+        /** @psalm-var numeric-string $formatted */
         return $formatted;
     }
 }

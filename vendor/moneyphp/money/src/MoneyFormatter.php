@@ -12,7 +12,7 @@ interface MoneyFormatter
     /**
      * Formats a Money object as string.
      *
-     * @phpstan-return non-empty-string
+     * @psalm-return non-empty-string
      *
      * Exception\FormatterException
      */

@@ -1,6 +1,6 @@
 {
     "name": "web-token/jwt-signature",
-    "description": "[DEPRECATED] Please use web-token/jwt-library instead.",
+    "description": "Signature component of the JWT Framework.",
     "type": "library",
     "license": "MIT",
     "keywords": [
@@ -29,11 +29,24 @@
         },
         {
             "name": "All contributors",
-            "homepage": "https://github.com/web-token/jwt-framework/contributors"
+            "homepage": "https://github.com/web-token/jwt-signature/contributors"
         }
     ],
+    "autoload": {
+        "psr-4": {
+            "Jose\\Component\\Signature\\": ""
+        }
+    },
     "require": {
         "php": ">=8.1",
-        "web-token/jwt-library": "^3.3"
+        "web-token/jwt-core": "^3.2"
+    },
+    "suggest": {
+        "web-token/jwt-signature-algorithm-ecdsa": "ECDSA Based Signature Algorithms",
+        "web-token/jwt-signature-algorithm-eddsa": "EdDSA Based Signature Algorithms",
+        "web-token/jwt-signature-algorithm-hmac": "HMAC Based Signature Algorithms",
+        "web-token/jwt-signature-algorithm-none": "None Signature Algorithm",
+        "web-token/jwt-signature-algorithm-rsa": "RSA Based Signature Algorithms",
+        "web-token/jwt-signature-algorithm-experimental": "Experimental Signature Algorithms"
     }
 }

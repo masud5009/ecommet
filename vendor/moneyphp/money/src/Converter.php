@@ -13,13 +13,16 @@ use function sprintf;
  */
 final class Converter
 {
-    public function __construct(private readonly Currencies $currencies, private readonly Exchange $exchange)
+    private Currencies $currencies;
+
+    private Exchange $exchange;
+
+    public function __construct(Currencies $currencies, Exchange $exchange)
     {
+        $this->currencies = $currencies;
+        $this->exchange   = $exchange;
     }
 
-    /**
-     * @param Money::ROUND_* $roundingMode
-     */
     public function convert(Money $money, Currency $counterCurrency, int $roundingMode = Money::ROUND_HALF_UP): Money
     {
         return $this->convertAgainstCurrencyPair(
@@ -32,11 +35,7 @@ final class Converter
         );
     }
 
-    /**
-     * @param Money::ROUND_* $roundingMode
-     *
-     * @return array{0: Money, 1: CurrencyPair}
-     */
+    /** @return array{0: Money, 1: CurrencyPair} */
     public function convertAndReturnWithCurrencyPair(Money $money, Currency $counterCurrency, int $roundingMode = Money::ROUND_HALF_UP): array
     {
         $pair = $this->exchange->quote(
@@ -47,9 +46,6 @@ final class Converter
         return [$this->convertAgainstCurrencyPair($money, $pair, $roundingMode), $pair];
     }
 
-    /**
-     * @param Money::ROUND_* $roundingMode
-     */
     public function convertAgainstCurrencyPair(Money $money, CurrencyPair $currencyPair, int $roundingMode = Money::ROUND_HALF_UP): Money
     {
         if (! $money->getCurrency()->equals($currencyPair->getBaseCurrency())) {

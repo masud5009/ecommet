@@ -11,7 +11,7 @@ class ExtendRequest extends FormRequest
      *
      * @return bool
      */
-    public function authorize(): bool
+    public function authorize()
     {
         return true;
     }
@@ -19,7 +19,7 @@ class ExtendRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array
+     * @return array<string, mixed>
      */
     public function rules(): array
     {
@@ -34,8 +34,6 @@ class ExtendRequest extends FormRequest
             'month' => 'sometimes|required',
             'year' => 'sometimes|required',
             'cardCVC' => 'sometimes|required',
-            'identity_number' => $this->payment_method == 'Iyzico' ? 'required' : '',
-            'zip_code' => $this->payment_method == 'Iyzico' ? 'required' : '',
         ];
     }
 

@@ -10,8 +10,6 @@ use Traversable;
 
 /**
  * Implement this to provide a list of currencies.
- *
- * @extends IteratorAggregate<int|string, Currency>
  */
 interface Currencies extends IteratorAggregate
 {
@@ -28,7 +26,7 @@ interface Currencies extends IteratorAggregate
     public function subunitFor(Currency $currency): int;
 
     /**
-     * @return Traversable<int|string, Currency>
+     * @psalm-return Traversable<int|string, Currency>
      */
     public function getIterator(): Traversable;
 }

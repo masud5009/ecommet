@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers\Payment;
 
-use App\Http\Controllers\Front\CheckoutController;
-use App\Http\Controllers\User\UserCheckoutController;
-use App\Http\Helpers\UserPermissionHelper;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use App\Http\Helpers\Common;
+use App\Http\Controllers\Vendor\VendorCheckoutController;
 use App\Http\Helpers\MegaMailer;
+use App\Http\Helpers\VendorPermissionHelper;
+use App\Models\BasicSettings\Basic;
 use App\Models\Language;
 use App\Models\Package;
-use App\Models\PaymentGateway;
+use App\Models\PaymentGateway\OnlineGateway;
 use Carbon\Carbon;
 use Razorpay\Api\Api;
 use Illuminate\Support\Facades\Session;
@@ -21,7 +20,7 @@ class RazorpayController extends Controller
 {
     public function __construct()
     {
-        $data = PaymentGateway::whereKeyword('razorpay')->first();
+        $data = OnlineGateway::whereKeyword('razorpay')->first();
         $paydata = $data->convertAutoData();
         $this->keyId = $paydata['key'];
         $this->keySecret = $paydata['secret'];
@@ -29,7 +28,7 @@ class RazorpayController extends Controller
     }
 
 
-    public function paymentProcess(Request $request, $_amount, $_item_number, $_cancel_url, $_success_url, $_title, $_description, $bs, $bex)
+    public function paymentProcess(Request $request, $_amount, $_item_number, $_cancel_url, $_success_url, $_title, $_description, $bs)
     {
         $cancel_url = $_cancel_url;
         $notify_url = $_success_url;
@@ -73,13 +72,13 @@ class RazorpayController extends Controller
             "order_id" => $razorpayOrder['id'],
         ];
 
-        if ($bex->base_currency_text !== 'INR') {
-            $data['display_currency'] = $bex->base_currency_text;
+        if ($bs->base_currency_text !== 'INR') {
+            $data['display_currency'] = $bs->base_currency_text;
             $data['display_amount'] = $displayAmount;
         }
 
         $json = json_encode($data);
-        $displayCurrency = $bex->base_currency_text;
+        $displayCurrency = $bs->base_currency_text;
 
         return view('front.razorpay', compact('data', 'displayCurrency', 'json', 'notify_url'));
     }
@@ -92,8 +91,7 @@ class RazorpayController extends Controller
         } else {
             $currentLang = Language::where('is_default', 1)->first();
         }
-        $be = $currentLang->basic_extended;
-        $bs = $currentLang->basic_setting;
+        $bs = Basic::first();
         /** Get the payment ID before session clear **/
         $payment_id = Session::get('order_payment_id');
         $success = true;
@@ -113,53 +111,72 @@ class RazorpayController extends Controller
         }
 
         if ($success === true) {
+            //transaction create
+            $after_balance = NULL;
+            $pre_balance = NULL;
+            $transactionData = [
+                'vendor_id' => $requestData['vendor_id'],
+                'transaction_type' => 'membership_buy',
+                'pre_balance' => $pre_balance,
+                'actual_total' => $requestData['price'],
+                'after_balance' => $after_balance,
+                'admin_profit' => $requestData['price'],
+                'payment_method' => $requestData['payment_method'],
+                'currency_symbol' => $bs->base_currency_symbol,
+                'currency_symbol_position' => $bs->base_currency_symbol_position,
+                'payment_status' => 'completed',
+            ];
+            store_transaction($transactionData);
+
             $package = Package::find($requestData['package_id']);
             $paymentFor = Session::get('paymentFor');
-            $transaction_id = UserPermissionHelper::uniqidReal(8);
+            $transaction_id = VendorPermissionHelper::uniqidReal(8);
             $transaction_details = json_encode($request);
             if ($paymentFor == "membership") {
                 $amount = $requestData['price'];
                 $password = $requestData['password'];
-                $checkout = new CheckoutController();
-                $requestData['status'] = 1;
-                $user = $checkout->store($requestData, $transaction_id, $transaction_details, $amount, $be, $password);
+                $checkout = new VendorCheckoutController();
+                $vendor = $checkout->store($requestData, $transaction_id, $transaction_details, $amount, $bs, $password);
 
-                $lastMemb = $user->memberships()->orderBy('id', 'DESC')->first();
+                $lastMemb = $vendor->memberships()->orderBy('id', 'DESC')->first();
                 $activation = Carbon::parse($lastMemb->start_date);
                 $expire = Carbon::parse($lastMemb->expire_date);
-                $file_name = Common::makeInvoice($requestData, "membership", $user, $password, $amount, "Razorpay", $requestData['phone'], $be->base_currency_symbol_position, $be->base_currency_symbol, $be->base_currency_text, $transaction_id, $package->title, 1);
+                $file_name = $this->makeInvoice($requestData, "membership", $vendor, $password, $amount, "Razorpay", $requestData['phone'], $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
 
                 $mailer = new MegaMailer();
                 $data = [
-                    'toMail' => $user->email,
-                    'toName' => $user->fname,
-                    'username' => $user->username,
+                    'toMail' => $vendor->email,
+                    'toName' => $vendor->fname,
+                    'username' => $vendor->username,
                     'package_title' => $package->title,
-                    'package_price' => ($be->base_currency_text_position == 'left' ? $be->base_currency_text . ' ' : '') . $package->price . ($be->base_currency_text_position == 'right' ? ' ' . $be->base_currency_text : ''),
+                    'package_price' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $package->price . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
                     'activation_date' => $activation->toFormattedDateString(),
+                    'discount' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $lastMemb->discount . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
+                    'total' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $lastMemb->price . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
                     'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                     'membership_invoice' => $file_name,
                     'website_title' => $bs->website_title,
-                    'templateType' => 'registration_with_premium_package',
+                    'templateType' => 'package_purchase',
                     'type' => 'registrationWithPremiumPackage'
                 ];
                 $mailer->mailFromAdmin($data);
+                @unlink(public_path('assets/front/invoices/' . $file_name));
 
-                session()->flash('success', __('successful_payment'));
+                session()->flash('success', 'Your payment has been completed.');
                 Session::forget('request');
                 Session::forget('paymentFor');
                 return redirect()->route('success.page');
             } elseif ($paymentFor == "extend") {
                 $amount = $requestData['price'];
                 $password = uniqid('qrcode');
-                $checkout = new UserCheckoutController();
-                $user = $checkout->store($requestData, $transaction_id, $transaction_details, $amount, $be, $password);
+                $checkout = new VendorCheckoutController();
+                $user = $checkout->store($requestData, $transaction_id, $transaction_details, $amount, $bs, $password);
 
 
                 $lastMemb = $user->memberships()->orderBy('id', 'DESC')->first();
                 $activation = Carbon::parse($lastMemb->start_date);
                 $expire = Carbon::parse($lastMemb->expire_date);
-                $file_name = Common::makeInvoice($requestData, "extend", $user, $password, $amount, $requestData["payment_method"], $user->phone_number, $be->base_currency_symbol_position, $be->base_currency_symbol, $be->base_currency_text, $transaction_id, $package->title, 1);
+                $file_name = $this->makeInvoice($requestData, "extend", $user, $password, $amount, $requestData["payment_method"], $user->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
 
                 $mailer = new MegaMailer();
                 $data = [
@@ -167,15 +184,16 @@ class RazorpayController extends Controller
                     'toName' => $user->fname,
                     'username' => $user->username,
                     'package_title' => $package->title,
-                    'package_price' => ($be->base_currency_text_position == 'left' ? $be->base_currency_text . ' ' : '') . $package->price . ($be->base_currency_text_position == 'right' ? ' ' . $be->base_currency_text : ''),
+                    'package_price' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $package->price . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
                     'activation_date' => $activation->toFormattedDateString(),
                     'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                     'membership_invoice' => $file_name,
                     'website_title' => $bs->website_title,
-                    'templateType' => 'membership_extend',
+                    'templateType' => 'package_purchase',
                     'type' => 'membershipExtend'
                 ];
                 $mailer->mailFromAdmin($data);
+                @unlink(public_path('assets/front/invoices/' . $file_name));
 
                 session()->flash('success', __('successful_payment'));
                 Session::forget('request');
@@ -188,7 +206,19 @@ class RazorpayController extends Controller
         if ($paymentFor == "membership") {
             return redirect()->route('front.register.view', ['status' => $requestData['package_type'], 'id' => $requestData['package_id']])->withInput($requestData);
         } else {
-            return redirect()->route('user.plan.extend.checkout', ['package_id' => $requestData['package_id']])->withInput($requestData);
+            return redirect()->route('vendor.plan.extend.checkout', ['package_id' => $requestData['package_id']])->withInput($requestData);
+        }
+    }
+
+    public function cancelPayment()
+    {
+        $requestData = Session::get('request');
+        $paymentFor = Session::get('paymentFor');
+        session()->flash('warning', __('cancel_payment'));
+        if ($paymentFor == "membership") {
+            return redirect()->route('front.register.view', ['status' => $requestData['package_type'], 'id' => $requestData['package_id']])->withInput($requestData);
+        } else {
+            return redirect()->route('vendor.plan.extend.checkout', ['package_id' => $requestData['package_id']])->withInput($requestData);
         }
     }
 }

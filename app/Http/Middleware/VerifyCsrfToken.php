@@ -6,28 +6,47 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken as Middleware;
 
 class VerifyCsrfToken extends Middleware
 {
-    /**
-     * Indicates whether the XSRF-TOKEN cookie should be set on the response.
-     *
-     * @var bool
-     */
-    protected $addHttpCookie = true;
+  /**
+   * The URIs that should be excluded from CSRF verification.
+   *
+   * @var array
+   */
+  protected $except = [
 
-    /**
-     * The URIs that should be excluded from CSRF verification.
-     *
-     * @var array
-     */
-    protected $except = [
-        '*/order/paytm/payment-status',
-        '*/order/flutterwave/success',
-        '/product/flutterwave/notify',
-        '/product/razorpay/notify',
-        '/product/payumoney/notify',
-        '/product/mercadopago/notify',
-        '/membership*',
-        '*/coupon',
-        '*/paytabs/success',
-        '*/iyzico/success',
-    ];
+    '/get-model',
+
+    '/shop/purchase-product/razorpay/notify',
+    '/shop/purchase-product/flutterwave/notify',
+    '/shop/purchase-product/paytm/notify',
+    '/services/paytm/payment/notify',
+    '/admin/menu-builder/update-menus',
+    '/push-notification/store-endpoint',
+    'shop/update-cart',
+
+
+    '/*paytm/payment-status*',
+    '/vendor/membership/mercadopago/cancel',
+    '/vendor/membership/mercadopago/success',
+    '*/vendor/membership/razorpay/success',
+    '*/vendor/membership/razorpay/cancel',
+    '/vendor/membership/instamojo/cancel',
+    '/*flutterwave/success',
+    '/vendor/membership/flutterwave/cancel',
+    '/vendor/membership/mollie/cancel',
+
+    '/membership/paytm/payment-status*',
+    '/membership/mercadopago/cancel',
+    '/membership/razorpay/success',
+    '/membership/razorpay/cancel',
+    '/membership/instamojo/cancel',
+    '/membership/flutterwave/success',
+    '/membership/flutterwave/cancel',
+    '/membership/mollie/cancel',
+    '*/iyzico/success', //use for membership buy
+    '*/paytabs/success', //use for membership buy
+    '*/notify/paytabs', //use for appointment booking
+    '*/notify/iyzico', //use for appointment booking
+    '*/myfatoorah/callback'
+
+  ];
 }

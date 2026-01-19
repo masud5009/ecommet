@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Money;
 
+use InvalidArgumentException;
 use JsonSerializable;
 use Money\Calculator\BcMathCalculator;
-use Money\Exception\InvalidArgumentException;
 
 use function array_fill;
 use function array_keys;
@@ -29,6 +29,8 @@ use const PHP_ROUND_HALF_UP;
 
 /**
  * Money Value Object.
+ *
+ * @psalm-immutable
  */
 final class Money implements JsonSerializable
 {
@@ -52,27 +54,29 @@ final class Money implements JsonSerializable
 
     /**
      * Internal value.
-     * Amount, expressed in the smallest currency units (eg cents).
      *
-     * @phpstan-var numeric-string
+     * @psalm-var numeric-string
      */
     private string $amount;
 
+    private Currency $currency;
+
     /**
-     * @var class-string<Calculator>
+     * @var Calculator
+     * @psalm-var class-string<Calculator>
      */
     private static string $calculator = BcMathCalculator::class;
 
     /**
      * @param int|string $amount Amount, expressed in the smallest units of $currency (eg cents)
-     * @phpstan-param int|numeric-string $amount
+     * @psalm-param int|numeric-string $amount
      *
      * @throws InvalidArgumentException If amount is not integer(ish).
-     *
-     * @phpstan-pure
      */
-    public function __construct(int|string $amount, private readonly Currency $currency)
+    public function __construct(int|string $amount, Currency $currency)
     {
+        $this->currency = $currency;
+
         if (filter_var($amount, FILTER_VALIDATE_INT) === false) {
             $numberFromString = Number::fromString((string) $amount);
             if (! $numberFromString->isInteger()) {
@@ -104,8 +108,6 @@ final class Money implements JsonSerializable
 
     /**
      * Checks whether the value represented by this object equals to the other.
-     *
-     * @phpstan-pure
      */
     public function equals(Money $other): bool
     {
@@ -128,33 +130,25 @@ final class Money implements JsonSerializable
      * Returns an integer less than, equal to, or greater than zero
      * if the value of this object is considered to be respectively
      * less than, equal to, or greater than the other.
-     *
-     * @phpstan-pure
      */
     public function compare(Money $other): int
     {
         // Note: non-strict equality is intentional here, since `Currency` is `final` and reliable.
         if ($this->currency != $other->currency) {
-            throw InvalidArgumentException::currencyMismatch();
+            throw new InvalidArgumentException('Currencies must be identical');
         }
 
-        // @phpstan-ignore impure.staticPropertyAccess, possiblyImpure.methodCall
         return self::$calculator::compare($this->amount, $other->amount);
     }
 
     /**
      * Checks whether the value represented by this object is greater than the other.
-     *
-     * @phpstan-pure
      */
     public function greaterThan(Money $other): bool
     {
         return $this->compare($other) > 0;
     }
 
-    /**
-     * @phpstan-pure
-     */
     public function greaterThanOrEqual(Money $other): bool
     {
         return $this->compare($other) >= 0;
@@ -162,26 +156,21 @@ final class Money implements JsonSerializable
 
     /**
      * Checks whether the value represented by this object is less than the other.
-     *
-     * @phpstan-pure
      */
     public function lessThan(Money $other): bool
     {
         return $this->compare($other) < 0;
     }
 
-    /**
-     * @phpstan-pure
-     */
     public function lessThanOrEqual(Money $other): bool
     {
         return $this->compare($other) <= 0;
     }
 
     /**
-     * Returns the value represented by this object - amount, expressed in the smallest currency units (eg cents).
+     * Returns the value represented by this object.
      *
-     * @phpstan-return numeric-string
+     * @psalm-return numeric-string
      */
     public function getAmount(): string
     {
@@ -200,7 +189,7 @@ final class Money implements JsonSerializable
      * Returns a new Money object that represents
      * the sum of this and an other Money object.
      *
-     * @phpstan-pure
+     * @param Money[] $addends
      */
     public function add(Money ...$addends): Money
     {
@@ -209,10 +198,9 @@ final class Money implements JsonSerializable
         foreach ($addends as $addend) {
             // Note: non-strict equality is intentional here, since `Currency` is `final` and reliable.
             if ($this->currency != $addend->currency) {
-                throw InvalidArgumentException::currencyMismatch();
+                throw new InvalidArgumentException('Currencies must be identical');
             }
 
-            // @phpstan-ignore impure.staticPropertyAccess, possiblyImpure.methodCall
             $amount = self::$calculator::add($amount, $addend->amount);
         }
 
@@ -223,7 +211,9 @@ final class Money implements JsonSerializable
      * Returns a new Money object that represents
      * the difference of this and an other Money object.
      *
-     * @phpstan-pure
+     * @param Money[] $subtrahends
+     *
+     * @psalm-pure
      */
     public function subtract(Money ...$subtrahends): Money
     {
@@ -232,10 +222,9 @@ final class Money implements JsonSerializable
         foreach ($subtrahends as $subtrahend) {
             // Note: non-strict equality is intentional here, since `Currency` is `final` and reliable.
             if ($this->currency != $subtrahend->currency) {
-                throw InvalidArgumentException::currencyMismatch();
+                throw new InvalidArgumentException('Currencies must be identical');
             }
 
-            // @phpstan-ignore impure.staticPropertyAccess, possiblyImpure.methodCall
             $amount = self::$calculator::subtract($amount, $subtrahend->amount);
         }
 
@@ -246,8 +235,8 @@ final class Money implements JsonSerializable
      * Returns a new Money object that represents
      * the multiplied value by the given factor.
      *
-     * @phpstan-param int|numeric-string $multiplier
-     * @phpstan-param self::ROUND_*  $roundingMode
+     * @psalm-param int|numeric-string $multiplier
+     * @psalm-param self::ROUND_*  $roundingMode
      */
     public function multiply(int|string $multiplier, int $roundingMode = self::ROUND_HALF_UP): Money
     {
@@ -264,10 +253,8 @@ final class Money implements JsonSerializable
      * Returns a new Money object that represents
      * the divided value by the given factor.
      *
-     * @phpstan-param int|numeric-string $divisor
-     * @phpstan-param self::ROUND_*  $roundingMode
-     *
-     * @phpstan-pure
+     * @psalm-param int|numeric-string $divisor
+     * @psalm-param self::ROUND_*  $roundingMode
      */
     public function divide(int|string $divisor, int $roundingMode = self::ROUND_HALF_UP): Money
     {
@@ -275,7 +262,6 @@ final class Money implements JsonSerializable
             $divisor = (string) $divisor;
         }
 
-        // @phpstan-ignore impure.staticPropertyAccess, possiblyImpure.methodCall
         $quotient = $this->round(self::$calculator::divide($this->amount, $divisor), $roundingMode);
 
         return new self($quotient, $this->currency);
@@ -286,29 +272,23 @@ final class Money implements JsonSerializable
      * the remainder after dividing the value by
      * the given factor.
      */
-    public function mod(Money|int|string $divisor): Money
+    public function mod(Money $divisor): Money
     {
-        if ($divisor instanceof self) {
-            // Note: non-strict equality is intentional here, since `Currency` is `final` and reliable.
-            if ($this->currency != $divisor->currency) {
-                throw InvalidArgumentException::currencyMismatch();
-            }
-
-            $divisor = $divisor->amount;
-        } else {
-            $divisor = (string) Number::fromNumber($divisor);
+        // Note: non-strict equality is intentional here, since `Currency` is `final` and reliable.
+        if ($this->currency != $divisor->currency) {
+            throw new InvalidArgumentException('Currencies must be identical');
         }
 
-        return new self(self::$calculator::mod($this->amount, $divisor), $this->currency);
+        return new self(self::$calculator::mod($this->amount, $divisor->amount), $this->currency);
     }
 
     /**
      * Allocate the money according to a list of ratios.
      *
-     * @phpstan-param TRatios $ratios
+     * @psalm-param TRatios $ratios
      *
      * @return Money[]
-     * @phpstan-return (
+     * @psalm-return (
      *     TRatios is list
      *         ? non-empty-list<Money>
      *         : non-empty-array<Money>
@@ -360,10 +340,10 @@ final class Money implements JsonSerializable
     /**
      * Allocate the money among N targets.
      *
-     * @phpstan-param positive-int $n
+     * @psalm-param positive-int $n
      *
      * @return Money[]
-     * @phpstan-return non-empty-list<Money>
+     * @psalm-return non-empty-list<Money>
      *
      * @throws InvalidArgumentException If number of targets is not an integer.
      */
@@ -373,7 +353,7 @@ final class Money implements JsonSerializable
     }
 
     /**
-     * @phpstan-return numeric-string
+     * @psalm-return numeric-string
      *
      * @throws InvalidArgumentException if the given $money is zero.
      */
@@ -385,41 +365,36 @@ final class Money implements JsonSerializable
 
         // Note: non-strict equality is intentional here, since `Currency` is `final` and reliable.
         if ($this->currency != $money->currency) {
-            throw InvalidArgumentException::currencyMismatch();
+            throw new InvalidArgumentException('Currencies must be identical');
         }
 
         return self::$calculator::divide($this->amount, $money->amount);
     }
 
     /**
-     * @phpstan-param numeric-string $amount
-     * @phpstan-param self::ROUND_*  $roundingMode
+     * @psalm-param numeric-string $amount
+     * @psalm-param self::ROUND_*  $roundingMode
      *
-     * @phpstan-return numeric-string
-     *
-     * @phpstan-pure
+     * @psalm-return numeric-string
      */
     private function round(string $amount, int $roundingMode): string
     {
         if ($roundingMode === self::ROUND_UP) {
-            // @phpstan-ignore impure.staticPropertyAccess, possiblyImpure.methodCall
             return self::$calculator::ceil($amount);
         }
 
         if ($roundingMode === self::ROUND_DOWN) {
-            // @phpstan-ignore impure.staticPropertyAccess, possiblyImpure.methodCall
             return self::$calculator::floor($amount);
         }
 
-        // @phpstan-ignore impure.staticPropertyAccess, possiblyImpure.methodCall
         return self::$calculator::round($amount, $roundingMode);
     }
 
     /**
      * Round to a specific unit.
      *
-     * @phpstan-param non-negative-int  $unit
-     * @phpstan-param self::ROUND_* $roundingMode
+     * @psalm-param positive-int|0  $unit
+     * @psalm-param self::ROUND_* $roundingMode
      */
     public function roundToUnit(int $unit, int $roundingMode = self::ROUND_HALF_UP): self
     {
@@ -432,6 +407,7 @@ final class Money implements JsonSerializable
             return new self('0', $this->currency);
         }
 
+        /** @psalm-var numeric-string $toBeRounded */
         $toBeRounded = substr($this->amount, 0, strlen($this->amount) - $unit) . '.' . substr($this->amount, $unit * -1);
 
         $result = $this->round($toBeRounded, $roundingMode);
@@ -439,6 +415,7 @@ final class Money implements JsonSerializable
             $result .= str_pad('', $unit, '0');
         }
 
+        /** @psalm-var numeric-string $result */
         return new self($result, $this->currency);
     }
 
@@ -481,9 +458,9 @@ final class Money implements JsonSerializable
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      *
-     * @phpstan-return array{amount: string, currency: string}
+     * @psalm-return array{amount: string, currency: string}
      */
     public function jsonSerialize(): array
     {
@@ -497,7 +474,7 @@ final class Money implements JsonSerializable
      * @param Money $first
      * @param Money ...$collection
      *
-     * @phpstan-pure
+     * @psalm-pure
      */
     public static function min(self $first, self ...$collection): Money
     {
@@ -518,7 +495,7 @@ final class Money implements JsonSerializable
      * @param Money $first
      * @param Money ...$collection
      *
-     * @phpstan-pure
+     * @psalm-pure
      */
     public static function max(self $first, self ...$collection): Money
     {
@@ -535,25 +512,25 @@ final class Money implements JsonSerializable
         return $max;
     }
 
-    /** @phpstan-pure */
+    /** @psalm-pure */
     public static function sum(self $first, self ...$collection): Money
     {
         return $first->add(...$collection);
     }
 
-    /** @phpstan-pure */
+    /** @psalm-pure */
     public static function avg(self $first, self ...$collection): Money
     {
         return $first->add(...$collection)->divide((string) (count($collection) + 1));
     }
 
-    /** @phpstan-param class-string<Calculator> $calculator */
+    /** @psalm-param class-string<Calculator> $calculator */
     public static function registerCalculator(string $calculator): void
     {
         self::$calculator = $calculator;
     }
 
-    /** @phpstan-return class-string<Calculator> */
+    /** @psalm-return class-string<Calculator> */
     public static function getCalculator(): string
     {
         return self::$calculator;

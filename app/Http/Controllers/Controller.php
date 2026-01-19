@@ -2,87 +2,90 @@
 
 namespace App\Http\Controllers;
 
+use PDF;
+use Mail;
+use Config;
+use Illuminate\Mail\Message;
+use App\Models\BasicSettings\Basic;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\URL;
 
 class Controller extends BaseController
 {
-    use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
+  use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
 
-    public function getUserPageHeading($language)
-    {
-        if (URL::current() == Route::is('front.user.shop')) {
-            $pageHeading = $language->pageName()->select('shop_page')->first();
-        } elseif (URL::current() == Route::is('front.user.blogs')) {
-            $pageHeading = $language->pageName()->select('blog_page')->first();
-        } elseif (URL::current() == Route::is('front.user.contact')) {
-            $pageHeading = $language->pageName()->select('contact_page')->first();
-        } elseif (URL::current() == Route::is('front.user.about')) {
-            $pageHeading = $language->pageName()->select('about_page')->first();
-        } elseif (URL::current() == Route::is('customer.wishlist')) {
-            $pageHeading = $language->pageName()->select('wishlist_page')->first();
-        } elseif (URL::current() == Route::is('front.user.cart')) {
-            $pageHeading = $language->pageName()->select('cart_page')->first();
-        } elseif (URL::current() == Route::is('front.user.compare')) {
-            $pageHeading = $language->pageName()->select('compare_page')->first();
-        } elseif (URL::current() == Route::is('customer.login')) {
-            $pageHeading = $language->pageName()->select('login_page')->first();
-        } elseif (URL::current() == Route::is('customer.signup')) {
-            $pageHeading = $language->pageName()->select('signup_page')->first();
-        } elseif (URL::current() == Route::is('customer.forget_password')) {
-            $pageHeading = $language->pageName()->select('forget_password_page')->first();
-        } elseif (URL::current() == Route::is('customer.dashboard')) {
-            $pageHeading = $language->pageName()->select('dashboard_page')->first();
-        } elseif (URL::current() == Route::is('customer.orders')) {
-            $pageHeading = $language->pageName()->select('orders_page')->first();
-        } elseif (URL::current() == Route::is('customer.edit_profile')) {
-            $pageHeading = $language->pageName()->select('edit_profile_page')->first();
-        } elseif (URL::current() == Route::is('customer.billing-details')) {
-            $pageHeading = $language->pageName()->select('billing_details_page')->first();
-        } elseif (URL::current() == Route::is('customer.shpping-details')) {
-            $pageHeading = $language->pageName()->select('shipping_details_page')->first();
-        } elseif (URL::current() == Route::is('customer.change_password')) {
-            $pageHeading = $language->pageName()->select('change_password_page')->first();
-        } elseif (URL::current() == Route::is('front.user.checkout.final_step')) {
-            $pageHeading = $language->pageName()->select('checkout_page')->first();
-        } elseif (URL::current() == Route::is('front.user.faq')) {
-            $pageHeading = $language->pageName()->select('faq_page')->first();
-        } else {
-            $pageHeading = null;
-        }
-        return $pageHeading;
+  public function getCurrencyInfo()
+  {
+    $baseCurrencyInfo = Basic::select('base_currency_symbol', 'base_currency_symbol_position', 'base_currency_text', 'base_currency_text_position', 'base_currency_rate')
+      ->firstOrFail();
+    return $baseCurrencyInfo;
+  }
+
+  public function makeInvoice($request, $key, $member, $password, $amount, $payment_method, $phone, $base_currency_symbol_position, $base_currency_symbol, $base_currency_text, $order_id, $package_title, $membership)
+  {
+    $file_name = uniqid($key) . ".pdf";
+    $pdf = PDF::loadView('pdf.membership', compact('request', 'member', 'password', 'amount', 'payment_method', 'phone', 'base_currency_symbol_position', 'base_currency_symbol', 'base_currency_text', 'order_id', 'package_title', 'membership'));
+    $output = $pdf->output();
+    @mkdir(public_path('assets/front/invoices/'), 0775, true);
+    file_put_contents(public_path('assets/front/invoices/') . $file_name, $output);
+    return $file_name;
+  }
+
+  public function sendMailWithPhpMailer($request, $file_name, $bs, $subject, $body, $email, $name)
+  {
+    //larave facade mail
+    if ($bs->smtp_status == 1) {
+      try {
+        $smtp = [
+          'transport' => 'smtp',
+          'host' => $bs->smtp_host,
+          'port' => $bs->smtp_port,
+          'encryption' => $bs->encryption,
+          'username' => $bs->smtp_username,
+          'password' => $bs->smtp_password,
+          'timeout' => null,
+          'auth_mode' => null,
+        ];
+        Config::set('mail.mailers.smtp', $smtp);
+      } catch (\Exception $e) {
+        session()->flash('error', $e->getMessage());
+        return back();
+      }
     }
 
+    $data = [
+      'to' => $email,
+      'subject' => $subject,
+      'body' => $body,
+      'file_name' => public_path('assets/front/invoices/') . $file_name,
+    ];
+    try {
+      if ($bs->smtp_status == 1) {
+        Mail::send([], [], function (Message $message) use ($data, $bs) {
+          $fromMail = $bs->from_mail;
+          $fromName = $bs->from_name;
+          $message->to($data['to'])
+            ->subject($data['subject'])
+            ->from($fromMail, $fromName)
+            ->html($data['body'], 'text/html');
 
-    public function getPageHeading($language)
-    {
-        if (URL::current() == Route::is('front.templates.view')) {
-            $pageHeading = $language->pageName()->pluck('template_title')->first();
-        } elseif (URL::current() == Route::is('front.pricing')) {
-            $pageHeading = $language->pageName()->pluck('pricing_title')->first();
-        } elseif (URL::current() == Route::is('front.user.view')) {
-            $pageHeading = $language->pageName()->pluck('shop_title')->first();
-        } elseif (URL::current() == Route::is('front.faq.view')) {
-            $pageHeading = $language->pageName()->pluck('faq_title')->first();
-        } elseif (URL::current() == Route::is('front.contact')) {
-            $pageHeading = $language->pageName()->pluck('contact_title')->first();
-        } elseif (URL::current() == Route::is('front.blogs')) {
-            $pageHeading = $language->pageName()->pluck('blog_title')->first();
-        } elseif (URL::current() == Route::is('user.login')) {
-            $pageHeading = $language->pageName()->pluck('login_title')->first();
-        } elseif (URL::current() == Route::is('front.register.view')) {
-            $pageHeading = $language->pageName()->pluck('signup_title')->first();
-        } elseif (URL::current() == Route::is('front.registration.step2')) {
-            $pageHeading = $language->pageName()->pluck('checkout_title')->first();
-        } elseif (URL::current() == Route::is('user.forgot.password.form')) {
-            $pageHeading = $language->pageName()->pluck('reset_password_title')->first();
-        } else {
-            $pageHeading = null;
-        }
-        return $pageHeading;
+          $message->attach($data['file_name'], [
+            'as' => 'Attachment',
+            'mime' => 'application/pdf',
+          ]);
+        });
+      }
+      return;
+    } catch (\Exception $e) {
+      Session::flash('error',  __('Something went wrong.'));
+      return back();
     }
+    //larave facade mail end
+  }
+
+
+  public function currentLang() {}
 }

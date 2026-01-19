@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace SpomkyLabs\Pki\ASN1\Util;
 
-use Brick\Math\BigInteger;
-use OutOfBoundsException;
-use RuntimeException;
-use SpomkyLabs\Pki\ASN1\Type\Primitive\BitString;
 use function assert;
+use Brick\Math\BigInteger;
 use function count;
 use function is_array;
 use function ord;
+use OutOfBoundsException;
+use RuntimeException;
+use SpomkyLabs\Pki\ASN1\Type\Primitive\BitString;
 
 /**
  * Class to handle a bit string as a field of flags.
- * @see \SpomkyLabs\Pki\Test\ASN1\Util\FlagsTest
  */
 final class Flags
 {

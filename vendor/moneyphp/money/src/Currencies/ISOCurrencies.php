@@ -23,14 +23,14 @@ final class ISOCurrencies implements Currencies
     /**
      * Map of known currencies indexed by code.
      *
-     * @phpstan-var non-empty-array<non-empty-string, array{
+     * @psalm-var non-empty-array<non-empty-string, array{
      *     alphabeticCode: non-empty-string,
      *     currency: non-empty-string,
-     *     minorUnit: non-negative-int,
+     *     minorUnit: positive-int|0,
      *     numericCode: positive-int
      * }>|null
      */
-    private static array|null $currencies = null;
+    private static ?array $currencies = null;
 
     public function contains(Currency $currency): bool
     {
@@ -61,7 +61,7 @@ final class ISOCurrencies implements Currencies
     }
 
     /**
-     * @phpstan-return Traversable<int, Currency>
+     * @psalm-return Traversable<int, Currency>
      */
     public function getIterator(): Traversable
     {
@@ -78,10 +78,10 @@ final class ISOCurrencies implements Currencies
     /**
      * Returns a map of known currencies indexed by code.
      *
-     * @phpstan-return non-empty-array<non-empty-string, array{
+     * @psalm-return non-empty-array<non-empty-string, array{
      *     alphabeticCode: non-empty-string,
      *     currency: non-empty-string,
-     *     minorUnit: non-negative-int,
+     *     minorUnit: positive-int|0,
      *     numericCode: positive-int
      * }>
      */
@@ -95,18 +95,21 @@ final class ISOCurrencies implements Currencies
     }
 
     /**
-     * @phpstan-return non-empty-array<non-empty-string, array{
+     * @psalm-return non-empty-array<non-empty-string, array{
      *     alphabeticCode: non-empty-string,
      *     currency: non-empty-string,
-     *     minorUnit: non-negative-int,
+     *     minorUnit: positive-int|0,
      *     numericCode: positive-int
      * }>
+     *
+     * @psalm-suppress MoreSpecificReturnType do not specify all keys and values
      */
     private function loadCurrencies(): array
     {
         $file = __DIR__ . '/../../resources/currency.php';
 
         if (is_file($file)) {
+            /** @psalm-suppress LessSpecificReturnStatement */
             return require $file;
         }
 

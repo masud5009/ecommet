@@ -24,8 +24,14 @@ use function substr;
  */
 final class IntlLocalizedDecimalParser implements MoneyParser
 {
-    public function __construct(private readonly NumberFormatter $formatter, private readonly Currencies $currencies)
+    private NumberFormatter $formatter;
+
+    private Currencies $currencies;
+
+    public function __construct(NumberFormatter $formatter, Currencies $currencies)
     {
+        $this->formatter  = $formatter;
+        $this->currencies = $currencies;
     }
 
     public function parse(string $money, Currency|null $fallbackCurrency = null): Money
@@ -69,6 +75,7 @@ final class IntlLocalizedDecimalParser implements MoneyParser
             $decimal = '0';
         }
 
+        /** @psalm-var numeric-string $decimal */
         return new Money($decimal, $fallbackCurrency);
     }
 }

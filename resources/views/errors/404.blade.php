@@ -1,96 +1,35 @@
 @php
-  $layoutDirectory = null;
-  $pageTitle = App\Models\Admin\Heading::where('language_id', $currentLang->id)->pluck('not_found_title')->first();
-  $user = App\Models\User::where('username', getParam())->first();
-  if ($user) {
-      $userCurrentLang = app('userCurrentLang');
-      if ($userCurrentLang) {
-          $pageTitle = App\Models\User\UserHeading::where([
-              ['language_id', $userCurrentLang->id],
-              ['user_id', $user->id],
-          ])
-              ->pluck('not_found_page')
-              ->first();
-      }
-  }
-  $layoutDirectory = !is_null($user) ? 'user-front.layout' : 'front.layout';
-  $breadcrumb_title = !is_null($user) ? 'breadcrumb_title' : 'breadcrumb-title';
-  $breadcrumb_link = !is_null($user) ? 'page-title' : 'breadcrumb-link';
+  $basicInfo = App\Models\BasicSettings\Basic::select('breadcrumb', 'theme_version')->firstOrFail();
+  $version = $basicInfo->theme_version;
 @endphp
-@extends($layoutDirectory)
+@extends('frontend.layout')
 
-@section('pagename')
-  - {{ $pageTitle ?? __('404') }}
+@section('pageHeading')
+  {{ __('404') }}
 @endsection
-
-@section($breadcrumb_title)
-  {{ $pageTitle ?? __('404') }}
-@endsection
-
-@section($breadcrumb_link)
-  {{ $pageTitle ?? __('404') }}
-@endsection
-
 @section('content')
-  <!--    Error section start   -->
-  <div class="error-section pt-100 pb-100 pb-90 pt-90">
+  @includeIf('frontend.partials.breadcrumb', [
+      'breadcrumb' => $basicInfo->breadcrumb,
+      'title' => __('404'),
+  ])
+
+  <!--====== Start Error Section ======-->
+  <section class="error-area ptb-100 text-center">
     <div class="container">
-      <div class="row align-items-center justify-content-center">
-        <div class="col-lg-8">
-          <div class="not-found text-center mb-30">
-            @if ($layoutDirectory == 'user-front.layout')
-              @php
-                $user = app('user');
-                $data = DB::table('user_basic_extendes')
-                    ->where([['user_id', $user->id], ['language_id', $userCurrentLang->id]])
-                    ->select('user_not_found_title', 'user_not_found_subtitle')
-                    ->first();
-                $image = DB::table('user_basic_settings')
-                    ->where('user_id', $user->id)
-                    ->pluck('page_not_found_image')
-                    ->first();
-              @endphp
-              @if (!is_null($image))
-                <img src="{{ asset('assets/user-front/images/' . @$image) }}" alt="">
-              @else
-                <img src="{{ asset('assets/front/img/404.png') }}" alt="">
-              @endif
-            @else
-              <img src="{{ asset('assets/front/img/404.png') }}" alt="">
-            @endif
+      <div class="row justify-content-center">
+        <div class="col-lg-6">
+          <div class="not-found">
+            <img src="{{ asset('assets/front/img/404.svg') }}" alt="404 Not Found">
           </div>
-
-          <div class="error-txt text-center mb-20">
-            @if ($layoutDirectory == 'user-front.layout')
-              @php
-                $keywords = App\Http\Helpers\Common::get_keywords($user->id);
-              @endphp
-              <h2>{{ $data->user_not_found_title ?? ($keywords['youare_lost'] ?? __("You're lost")) }}...</h2>
-              <p>
-                {{ $data->user_not_found_subtitle ?? ($keywords['The page you are looking for might have been moved, renamed, or might never have existed.'] ?? __('The page you are looking for might have been moved, renamed, or might never have existed.')) }}
-              </p>
-
-              <a href="{{ route('front.user.detail.view', getParam()) }}"
-                class="btn btn-md btn-primary radius-sm">{{ $keywords['Back Home'] ?? __('Back Home') }}</a>
-            @else
-              @php
-                if (session()->has('lang')) {
-                    app()->setLocale(session()->get('lang'));
-                } else {
-                    $defaultLang = App\Models\Language::where('is_default', 1)->first();
-                    if (!empty($defaultLang)) {
-                        app()->setLocale($defaultLang->code);
-                    }
-                }
-              @endphp
-              <h2>{{ __("You're lost") }}...</h2>
-              <p>{{ __('The page you are looking for might have been moved, renamed, or might never existed.') }}</p>
-              <a href="{{ route('front.index') }}" class="btn btn-md btn-primary radius-sm">{{ __('Back Home') }}</a>
-            @endif
+          <div class="error-txt">
+            <h2>{{ __('404 not found') }}</h2>
+            <p class="mx-auto">
+              {{ __('The page you are looking for might have been moved, renamed, or might never existed.') }}</p>
+            <a href="{{ route('index') }}" class="btn btn-lg btn-primary">{{ __('Back to Home') }}</a>
           </div>
         </div>
       </div>
     </div>
-  </div>
-  <!--    Error section end   -->
+  </section>
+  <!--====== End Error Section ======-->
 @endsection

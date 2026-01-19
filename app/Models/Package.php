@@ -3,36 +3,35 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Package extends Model
 {
-    public $table = "packages";
+  use HasFactory;
 
-    protected $fillable = [
-        'title',
-        'slug',
-        'price',
-        'term',
-        'featured',
-        'recommended',
-        'icon',
-        'is_trial',
-        'trial_days',
-        'post_limit',
-        'product_limit',
-        'categories_limit',
-        'subcategories_limit',
-        'order_limit',
-        'language_limit',
-        'number_of_custom_page',
-        'status',
-        'features',
-        'meta_keywords',
-        'meta_description',
-    ];
+  protected $fillable = [
+    'title',
+    'price',
+    'term',
+    'is_trial',
+    'trial_days',
+    'status',
+    'icon',
+    'number_of_service_add',
+    'number_of_service_image',
+    'number_of_appointment',
+    'staff_limit',
+    'recommended',
+    'zoom_meeting_status',
+    'calendar_status',
+    'custom_features',
+    'support_ticket_status',
+    'staff_status',
+    'whatsapp_manager_status'
+  ];
 
-    public function memberships()
-    {
-        return $this->hasMany('App\Models\Membership');
-    }
+  public function memberships()
+  {
+    return $this->hasMany(Membership::class);
+  }
 }

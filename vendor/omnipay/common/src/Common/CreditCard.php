@@ -190,7 +190,7 @@ class CreditCard
      * @param array $parameters An associative array of parameters
      * @return $this
      */
-    public function initialize(?array $parameters = null)
+    public function initialize(array $parameters = null)
     {
         $this->parameters = new ParameterBag;
 
@@ -377,7 +377,7 @@ class CreditCard
     public function setNumber($value)
     {
         // strip non-numeric characters
-        return $this->setParameter('number', preg_replace('/\D/', '', (string) $value));
+        return $this->setParameter('number', preg_replace('/\D/', '', $value));
     }
 
     /**
@@ -412,10 +412,8 @@ class CreditCard
      */
     public function getBrand()
     {
-        $number = (string) $this->getNumber();
-
         foreach ($this->getSupportedBrands() as $brand => $val) {
-            if (preg_match($val, $number)) {
+            if (preg_match($val, $this->getNumber())) {
                 return $brand;
             }
         }

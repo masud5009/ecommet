@@ -1,33 +1,43 @@
 <!DOCTYPE html>
-<html lang="{{ $default->code }}" dir="{{ $default->rtl == 1 ? 'rtl' : 'ltr' }}">
+<html lang="{{ $currentLang->code }}" @if ($rtl == 1) dir="rtl" @endif>
 
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="csrf-token" content="{{ csrf_token() }}">
-  <meta content='width=device-width, initial-scale=1.0, shrink-to-fit=no' name='viewport' />
-  <title>{{ $bs->website_title }} - {{ __('Admin') }}</title>
-  <link rel="icon" href="{{ asset('assets/front/img/' . $bs->favicon) }}">
-  @includeif('admin.partials.styles')
-  @php
-    $selLang = App\Models\Language::where('code', request()->input('language'))->first();
-  @endphp
-  @yield('styles')
+  {{-- required meta tags --}}
+  <meta http-equiv="Content-Type" content="text/html" charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
 
+  {{-- csrf-token for ajax request --}}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  {{-- title --}}
+  <title>{{ __('Admin') . ' | ' . $websiteInfo->website_title }}</title>
+
+  {{-- fav icon --}}
+  <link rel="shortcut icon" type="image/png" href="{{ asset('assets/img/' . $websiteInfo->favicon) }}">
+
+  {{-- include styles --}}
+  @includeIf('admin.partials.styles')
+
+{{-- additional style --}}
+  @yield('style')
 </head>
 
-<body @if (request()->cookie('admin-theme') == 'dark') data-background-color="dark" @endif>
-  <div class="wrapper">
+<body data-background-color="{{ $settings->admin_theme_version == 'light' ? 'white' : 'dark' }}">
+  {{-- loader start --}}
+  <div class="request-loader">
+    <img src="{{ asset('assets/img/loader.gif') }}" alt="loader">
+  </div>
+  {{-- loader end --}}
 
+  <div class="wrapper">
     {{-- top navbar area start --}}
-    @includeif('admin.partials.top-navbar')
+    @includeIf('admin.partials.top-navbar')
     {{-- top navbar area end --}}
 
-
     {{-- side navbar area start --}}
-    @includeif('admin.partials.side-navbar')
+    @includeIf('admin.partials.side-navbar')
     {{-- side navbar area end --}}
-
 
     <div class="main-panel">
       <div class="content">
@@ -35,18 +45,19 @@
           @yield('content')
         </div>
       </div>
-      @includeif('admin.partials.footer')
+
+      {{-- footer area start --}}
+      @includeIf('admin.partials.footer')
+      {{-- footer area end --}}
     </div>
-
   </div>
 
-  @includeif('admin.partials.scripts')
+  {{-- include scripts --}}
+  @includeIf('admin.partials.scripts')
 
-  {{-- Loader --}}
-  <div class="request-loader">
-    <img src="{{ asset('assets/admin/img/loader.gif') }}" alt="">
-  </div>
-  {{-- Loader --}}
+  {{-- additional script --}}
+  @yield('variables')
+  @yield('script')
 </body>
 
 </html>
