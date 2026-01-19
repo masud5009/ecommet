@@ -4,1072 +4,1238 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Language\StoreRequest;
-use App\Http\Requests\Language\UpdateRequest;
-use App\Models\CustomPage\Page;
-use App\Models\CustomPage\PageContent;
-use App\Models\Journal\Blog;
-use App\Models\Journal\BlogInformation;
+use App\Models\BasicExtended as BE;
+use App\Models\BasicSetting as BS;
 use App\Models\Language;
-use App\Models\MenuBuilder;
-use App\Models\Shop\Product;
-use App\Models\Shop\ProductContent;
-use App\Models\Shop\ProductOrder;
-use App\Models\Shop\ProductPurchaseItem;
+use App\Models\Menu;
+use App\Models\User;
+use App\Models\User\Language as UserLanguage;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Response;
-use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\File;
+use Illuminate\Validation\Rule;
+use Session;
+use Validator;
+
 
 class LanguageController extends Controller
 {
-  /**
-   * Display a listing of the resource.
-   *
-   * @return \Illuminate\Http\Response
-   */
-  public function index()
-  {
-    $languages = Language::all();
-
-    return view('admin.language.index', compact('languages'));
-  }
-
-  /**
-   * Store a newly created resource in storage.
-   *
-   * @param  \Illuminate\Http\Request  $request
-   * @return \Illuminate\Http\Response
-   */
-  public function store(StoreRequest $request)
-  {
-    // get all the keywords from the default file of language
-    $data = file_get_contents(resource_path('lang/') . 'default.json');
-    $adminData = file_get_contents(resource_path('lang/') . 'admin_default.json');
-
-    // make a new json file for the new language
-    $fileName = strtolower($request->code) . '.json';
-    $AdminFileName = 'admin_' . strtolower($request->code) . '.json';
-
-    // create the path where the new language json file will be stored
-    $fileLocated = resource_path('lang/') . $fileName;
-    $AdminFileLocated = resource_path('lang/') . $AdminFileName;
-
-    // finally, put the keywords in the new json file and store the file in lang folder
-    file_put_contents($fileLocated, $data);
-    file_put_contents($AdminFileLocated, $adminData);
-    $in = $request->all();
-    $in['code'] = strtolower($request->code);
-
-    // then, store data in db
-    $language = Language::query()->create($in);
-
-    $data = [];
-
-    $data[] = [
-      'text' => 'Home',
-      "href" => "",
-      "icon" => "empty",
-      "target" => "_self",
-      "title" => "",
-      "type" => "home"
-    ];
-    $data[] = [
-      'text' => 'Vendors',
-      "href" => "",
-      "icon" => "empty",
-      "target" => "_self",
-      "title" => "",
-      "type" => "vendors"
-    ];
-    $data[] = [
-      'text' => 'Shop',
-      "href" => "",
-      "icon" => "empty",
-      "target" => "_self",
-      "title" => "",
-      "type" => "shop"
-    ];
-
-    $data[] = [
-      'text' => 'Blog',
-      "href" => "",
-      "icon" => "empty",
-      "target" => "_self",
-      "title" => "",
-      "type" => "blog"
-    ];
-    $data[] = [
-      'text' => 'FAQ',
-      "href" => "",
-      "icon" => "empty",
-      "target" => "_self",
-      "title" => "",
-      "type" => "faq"
-    ];
-    $data[] = [
-      'text' => 'About Us',
-      "href" => "",
-      "icon" => "empty",
-      "target" => "_self",
-      "title" => "",
-      "type" => "about-us"
-    ];
-    $data[] = [
-      'text' => 'Contact',
-      "href" => "",
-      "icon" => "empty",
-      "target" => "_self",
-      "title" => "",
-      "type" => "contact"
-    ];
-    MenuBuilder::create([
-      'language_id' => $language->id,
-      'menus' => json_encode($data, true)
-    ]);
-    // define the path for the language folder
-    $langFolderPath = resource_path('lang/' . $language->code);
-    if (!file_exists($langFolderPath)) {
-      mkdir($langFolderPath, 0755, true);
+    public function index($lang = false)
+    {
+        $data['languages'] = Language::all();
+        return view('admin.language.index', $data);
     }
-    // define the source path for the existing language files
-    $sourcePath = resource_path('lang/admin_' . $language->code);
-    // Check if the source directory exists
-    if (is_dir($sourcePath)) {
-      $files = scandir($sourcePath);
-      foreach ($files as $file) {
-        // Skip the current and parent directory indicators
-        if ($file !== '.' && $file !== '..') {
-          // Copy each file to the new language folder
-          $sourceFilePath = $sourcePath . '/' . $file;
-          $destinationFilePath = $langFolderPath . '/' . $file;
 
-          copy($sourceFilePath, $destinationFilePath);
+    public function store(StoreRequest $request)
+    {
+        // retrieve all default language json files
+        $data = file_get_contents(resource_path('lang/') . 'default.json');
+        $admin_data = file_get_contents(resource_path('lang/') . 'admin_default.json');
+        $user_data = file_get_contents(resource_path('lang/') . 'user_default.json');
+
+        // create new language json files
+        $json_file = trim($request->code) . '.json';
+        $admin_json_file = 'admin_' . trim($request->code) . '.json';
+        $user_json_file = 'user_' . trim($request->code) . '.json';
+
+        // retrieve all default language json file path
+        $path = resource_path('lang/') . $json_file;
+        $admin_path = resource_path('lang/') . $admin_json_file;
+        $user_path = resource_path('lang/') . $user_json_file;
+
+        //put all default langauge json file content into new langauge
+        File::put($path, $data);
+        File::put($admin_path, $admin_data);
+        File::put($user_path, $user_data);
+
+        //create a new langauge
+        $defaultLang = Language::where('is_default', 1)->select('customer_keywords')->first();
+        $in['customer_keywords'] = $defaultLang->customer_keywords;
+        $in['name'] = $request->name;
+        $in['code'] = $request->code;
+        $in['rtl'] = $request->direction;
+        if (Language::where('is_default', 1)->count() > 0) {
+            $in['is_default'] = 0;
+        } else {
+            $in['is_default'] = 1;
         }
-      }
-    }
-    //update attributes with current keyword values
-    $validationFilePath = resource_path('lang/admin_' . $language->code . '/validation.php');
-    //update existing keywords for validation attributes
-    $newKeys = $this->dashboardAttribute();
-    $this->updateValidationAttribute($newKeys, $adminData, $validationFilePath);
+        $lang = Language::create($in);
 
-    Session::flash('success', __('Language added successfully!'));
+        // define the path for the language folder
+        $langFolderPath = resource_path('lang/' . $lang->code);
+        $adminDestinationFolder = resource_path('lang/' . 'admin_' . $lang->code);
+        $userDestinationFolder = resource_path('lang/' . 'user_' . $lang->code);
+        $this->copyFolder($langFolderPath, $adminDestinationFolder);
+        $this->copyFolder($langFolderPath, $userDestinationFolder);
 
-    return response()->json(['status' => 'success'], 200);
-  }
-
-  /**
-   * Make a default language for this system.
-   *
-   * @param  int  $id
-   * @return \Illuminate\Http\Response
-   */
-  public function makeDefault($id)
-  {
-    // first, make other languages to non-default language
-    $prevDefLang = Language::query()->where('is_default', '=', 1);
-
-    $prevDefLang->update(['is_default' => 0]);
-
-    // second, make the selected language to default language
-    $language = Language::query()->find($id);
-
-    $language->update(['is_default' => 1]);
-
-    return back()->with('success', $language->name . ' ' . __('is set as default language.'));
-  }
-
-  /**
-   * Update the specified resource in storage.
-   *
-   * @param  \Illuminate\Http\Request  $request
-   * @param  int  $id
-   * @return \Illuminate\Http\Response
-   */
-  public function update(UpdateRequest $request)
-  {
-    $language = Language::query()->find($request->id);
-    $in = $request->all();
-    $in['code'] = strtolower($request->code);
-
-    if ($language->code !== $request->code) {
-      /**
-       * get all the keywords from the previous file,
-       * which was named using previous language code
-       */
-      $data = file_get_contents(resource_path('lang/') . $language->code . '.json');
-      $adminData = file_get_contents(resource_path('lang/') . 'admin_' . $language->code . '.json');
-
-      // make a new json file for the new language (code)
-      $fileName = strtolower($request->code) . '.json';
-      $adminFileName = 'admin_' . strtolower($request->code) . '.json';
-
-      // create the path where the new language (code) json file will be stored
-      $fileLocated = resource_path('lang/') . $fileName;
-      $adminFileLocated = resource_path('lang/') . $adminFileName;
-
-      // then, put the keywords in the new json file and store the file in lang folder
-      file_put_contents($fileLocated, $data);
-      file_put_contents($adminFileLocated, $adminData);
-
-      // define the path for the language folder
-      $langFolderPath = resource_path('lang/' . $request->code);
-      if (!file_exists($langFolderPath)) {
-        mkdir($langFolderPath, 0755, true);
-      }
-      // define the source path for the existing language files
-      $sourcePath = resource_path('lang/admin_' . $request->code);
-
-      // Check if the source directory exists
-      if (is_dir($sourcePath)) {
-        $files = scandir($sourcePath);
-        foreach ($files as $file) {
-          // Skip the current and parent directory indicators
-          if ($file !== '.' && $file !== '..') {
-            // Copy each file to the new language folder
-            copy($sourcePath . '/' . $file, $langFolderPath . '/' . $file);
-          }
+        if (!file_exists($langFolderPath)) {
+            mkdir($langFolderPath, 0755, true);
         }
-      }
-      // now, delete the previous language code file
-      @unlink(resource_path('lang/') . $language->code . '.json');
-      @unlink(resource_path('lang/') . 'admin_' . $language->code . '.json');
-      // Delete language folder and its contents
-      $dir = resource_path('lang/') . $language->code;
-      if (is_dir($dir)) {
-        $this->deleteDirectory($dir);
-      }
-      // Load validation attributes
-      $validationFilePath = resource_path('lang/admin_' . $request->code . '/validation.php');
-      //update existing keywords for validation attributes
-      $newKeys = $this->dashboardAttribute();
-      $this->updateValidationAttribute($newKeys, $adminData, $validationFilePath);
-
-      // finally, update the info in db
-      $language->update($in);
-    } else {
-      $language->update($in);
-    }
-
-    Session::flash('success', __('Language updated successfully!'));
-
-    return response()->json(['status' => 'success'], 200);
-  }
-
-  /**
-   * forntend keyword add
-   */
-  public function addKeyword(Request $request)
-  {
-    $rules = [
-      'keyword' => 'required'
-    ];
-
-    $validator = Validator::make($request->all(), $rules);
-    if ($validator->fails()) {
-      return Response::json([
-        'errors' => $validator->getMessageBag()->toArray()
-      ], 400);
-    }
-    $languages = Language::get();
-    foreach ($languages as $language) {
-      // get all the keywords of the selected language
-      $jsonData = file_get_contents(resource_path('lang/') . $language->code . '.json');
-
-      // convert json encoded string into a php associative array
-      $keywords = json_decode($jsonData, true);
-      $datas = [];
-      $datas[$request->keyword] = $request->keyword;
-
-      foreach ($keywords as $key => $keyword) {
-        $datas[$key] = $keyword;
-      }
-      //put data
-      $jsonData = json_encode($datas);
-
-      $fileLocated = resource_path('lang/') . $language->code . '.json';
-
-      // put all the keywords in the selected language file
-      file_put_contents($fileLocated, $jsonData);
-    }
-
-    //for default json
-    // get all the keywords of the selected language
-    $jsonData = file_get_contents(resource_path('lang/') . 'default.json');
-
-    // convert json encoded string into a php associative array
-    $keywords = json_decode($jsonData, true);
-    $datas = [];
-    $datas[$request->keyword] = $request->keyword;
-
-    foreach ($keywords as $key => $keyword) {
-      $datas[$key] = $keyword;
-    }
-    //put data
-    $jsonData = json_encode($datas);
-
-    $fileLocated = resource_path('lang/') . 'default.json';
-
-    // put all the keywords in the selected language file
-    file_put_contents($fileLocated, $jsonData);
-
-    session()->flash('success', __('A new keyword has been added successfully for all languages!'));
-
-    return Response::json(['status' => 'success'], 200);
-  }
-
-  /**
-   * admin keyword add
-   */
-  public function addAdminKeyword(Request $request)
-  {
-    $rules = [
-      'keyword' => 'required'
-    ];
-
-    $validator = Validator::make($request->all(), $rules);
-    if ($validator->fails()) {
-      return Response::json([
-        'errors' => $validator->getMessageBag()->toArray()
-      ], 400);
-    }
-
-    // Get all languages
-    $languages = Language::get();
-
-    // Create an associative array for new keywords
-    $newKeyword = $request->keyword;
-    $datas = [];
-
-    // Update each language file
-    foreach ($languages as $language) {
-      $fileLocated = resource_path('lang/admin_' . $language->code . '.json');
-
-      // Check if the language file exists, if not create it by copying from default
-      if (!file_exists($fileLocated)) {
-        $defaultContent = file_get_contents(resource_path('lang/admin_default.json'));
-        file_put_contents($fileLocated, $defaultContent);
-      }
-
-      // Read the current language file only once
-      $jsonData = file_get_contents($fileLocated);
-      $keywords = json_decode($jsonData, true);
-
-      // Add the new keyword to the existing keywords
-      $keywords[$newKeyword] = $newKeyword;
-
-      // Store the updated keywords to write later
-      $datas[$fileLocated] = json_encode($keywords);
-    }
-
-    // Write all updates at once
-    foreach ($datas as $file => $content) {
-      file_put_contents($file, $content);
-    }
-
-    // Update the default JSON file as well
-    $defaultFile = resource_path('lang/admin_default.json');
-    $defaultContent = file_get_contents($defaultFile);
-    $defaultKeywords = json_decode($defaultContent, true);
-    $defaultKeywords[$newKeyword] = $newKeyword;
-
-    // Write the updated default keywords
-    file_put_contents($defaultFile, json_encode($defaultKeywords));
-
-    session()->flash('success', __('A new keyword has been added successfully for all languages!'));
-
-    return Response::json(['status' => 'success'], 200);
-  }
-
-
-  /**
-   * Display all the keywords of specified resource.
-   *
-   * @param  int  $id
-   * @return \Illuminate\Http\Response
-   */
-  public function editKeyword($id)
-  {
-    $language = Language::query()->findOrFail($id);
-
-    // get all the keywords of the selected language
-    $jsonData = file_get_contents(resource_path('lang/') . $language->code . '.json');
-
-    // convert json encoded string into a php associative array
-    $keywords = json_decode($jsonData);
-
-    return view('admin.language.edit-keyword', compact('language', 'keywords'));
-  }
-
-  /**
-   * edit admin keyword page
-   */
-  public function editAdminKeyword($id)
-  {
-    $language = Language::query()->findOrFail($id);
-
-    // get all the keywords of the selected language
-    $jsonData = file_get_contents(resource_path('lang/') . 'admin_' . $language->code . '.json');
-
-    // convert json encoded string into a php associative array
-    $keywords = json_decode($jsonData);
-
-    return view('admin.language.edit-admin-keyword', compact('language', 'keywords'));
-  }
-
-  /**
-   * Update the keywords of specified resource in respective json file.
-   *
-   * @param  \Illuminate\Http\Request  $request
-   * @param  int  $id
-   * @return \Illuminate\Http\Response
-   */
-  public function updateKeyword(Request $request, $id)
-  {
-    $language = Language::query()->find($id);
-    $arrData = $request['keyValues'];
-
-    // first, check each key has value or not
-    foreach ($arrData as $key => $value) {
-      if ($value == null) {
-        Session::flash('warning', 'Value is required for "' . $key . '" key.');
-
-        return redirect()->back();
-      }
-    }
-
-    $jsonData = json_encode($arrData);
-
-    // Load validation attributes
-    $validationFilePath = resource_path('lang/' . $language->code . '/validation.php');
-
-    //update existing attributes
-    $newKeys = $this->frontAttribute();
-    $this->updateValidationAttribute($newKeys, $jsonData, $validationFilePath);
-
-    $fileLocated = resource_path('lang/') . $language->code . '.json';
-
-    // put all the keywords in the selected language file
-    file_put_contents($fileLocated, $jsonData);
-
-    Session::flash('success', $language->name . ' ' . __("language's keywords updated successfully!"));
-
-    return redirect()->back();
-  }
-
-  /**
-   * update admin keyword
-   */
-  public function updateAdminKeyword(Request $request, $id)
-  {
-    $language = Language::query()->find($id);
-    $arrData = $request['keyValues'];
-
-    // first, check each key has value or not
-    foreach ($arrData as $key => $value) {
-      if ($value == null) {
-        Session::flash('warning', 'Value is required for "' . $key . '" key.');
-
-        return redirect()->back();
-      }
-    }
-
-    $fileLocated = resource_path('lang/') . 'admin_' . $language->code . '.json';
-
-    // Load existing keywords from file
-    $existingData = [];
-    if (file_exists($fileLocated)) {
-      $existingData = json_decode(file_get_contents($fileLocated), true) ?? [];
-    }
-
-    // Merge existing keywords with new ones (new keys overwrite old ones)
-    $mergedData = array_merge($existingData, $arrData);
-
-    //update attributes with current keyword values
-    $validationFilePath = resource_path('lang/admin_' . $language->code . '/validation.php');
-    //update existing keywords for validation attributes
-    $newKeys = $this->dashboardAttribute();
-    $this->updateValidationAttribute($newKeys, json_encode($arrData), $validationFilePath);
-
-    // Save the updated data
-    file_put_contents($fileLocated, json_encode($mergedData));
-
-    Session::flash('success', $language->name . ' ' . __("language's keywords updated successfully!"));
-
-    return redirect()->back();
-  }
-  /**
-   * Remove the specified resource from storage.
-   *
-   * @param  int  $id
-   * @return \Illuminate\Http\Response
-   */
-  public function destroy($id)
-  {
-    $language = Language::query()->find($id);
-
-    if ($language->is_default == 1) {
-      return redirect()->back()->with('warning', __('Default language cannot be delete!'));
-    } else {
-      /**
-       * delete website-menu info
-       */
-      $websiteMenuInfo = $language->menuInfo()->first();
-
-      if (!empty($websiteMenuInfo)) {
-        $websiteMenuInfo->delete();
-      }
-
-      /**
-       * delete service-categories info
-       */
-      $serviceCategories = $language->serviceCategory()->get();
-      foreach ($serviceCategories as $serviceCategory) {
-        @unlink(public_path('assets/admin/img/category/') . $serviceCategory->image);
-        $serviceCategory->delete();
-      }
-
-      /**
-       * delete service-content
-       */
-      $serviceContents = $language->serviceContent()->get();
-      foreach ($serviceContents as $serviceContent) {
-        $serviceContent->delete();
-      }
-
-      /**
-       * delete staff-content
-       */
-      $staffContents = $language->staffContent()->get();
-      foreach ($staffContents as $staffContent) {
-        $staffContent->delete();
-      }
-      /**
-       * delete product-categories info
-       */
-      $productCategories = $language->productCategory()->get();
-
-      if (count($productCategories) > 0) {
-        foreach ($productCategories as $productCategory) {
-          $productCategory->delete();
-        }
-      }
-
-      $shippingCharges = $language->shippingCharge()->get();
-      foreach ($shippingCharges as $shippingCharge) {
-        $shippingCharge->delete();
-      }
-
-      /**
-       * delete product infos
-       */
-      $productInfos = $language->productContent()->get();
-
-      if (count($productInfos) > 0) {
-        foreach ($productInfos as $productData) {
-          $productInfo = $productData;
-          $productData->delete();
-
-          // delete the product if, this product does not contain any other product-contents in any other language
-          $otherProductInfos = ProductContent::query()->where('language_id', '<>', $language->id)
-            ->where('product_id', '=', $productInfo->product_id)
-            ->get();
-
-          if (count($otherProductInfos) == 0) {
-            $product = Product::query()->find($productInfo->product_id);
-
-            // delete purchase item records of this product
-            $purchaseInfos = $product->purchase()->get();
-
-            if (count($purchaseInfos) > 0) {
-              foreach ($purchaseInfos as $purchaseData) {
-                $purchaseInfo = $purchaseData;
-                $purchaseData->delete();
-
-                // delete the order if, this order does not contain any other items
-                $otherPurchaseItems = ProductPurchaseItem::query()->where('product_id', '<>', $product->id)
-                  ->where('product_order_id', '=', $purchaseInfo->product_order_id)
-                  ->get();
-
-                if (count($otherPurchaseItems) == 0) {
-                  $order = ProductOrder::query()->find($purchaseInfo->product_order_id);
-
-                  // delete order receipt
-                  @unlink(public_path('assets/file/attachments/product/') . $order->receipt);
-
-                  // delete order invoice
-                  @unlink(public_path('assets/file/invoices/product/') . $order->invoice);
-
-                  $order->delete();
+        // define the source path for the existing language files
+        $sourcePath = resource_path('lang/admin_' . $lang->code);
+        // Check if the source directory exists
+        if (is_dir($sourcePath)) {
+            $files = scandir($sourcePath);
+            foreach ($files as $file) {
+                // Skip the current and parent directory indicators
+                if ($file !== '.' && $file !== '..') {
+                    // Copy each file to the new language folder
+                    copy($sourcePath . '/' . $file, $langFolderPath . '/' . $file);
                 }
-              }
+            }
+        }
+        // Load validation attributes
+        $validationFilePath = resource_path('lang/admin_' . $lang->code . '/validation.php');
+
+        //update existing keywords for validation attributes
+        $newKeys = $this->validationMessage();
+        $this->updateValidationAttribute($newKeys, $admin_data, $validationFilePath);
+
+        /// language add also user_languages table for user
+        if ($lang) {
+
+            $users = User::get();
+            foreach ($users as $user) {
+                $userLangs = $user->languages()->get();
+                $updateUserLang = false;
+
+                if ($userLangs) {
+                    foreach ($userLangs as $uLang) {
+                        if ($uLang && $uLang->code == $request->code) {
+                            $uLang->update([
+                                'type' => 'admin'
+                            ]);
+                            $updateUserLang = true;
+                        }
+                    }
+                }
+                if ($updateUserLang == false) {
+                    UserLanguage::create([
+                        'user_id' => $user->id,
+                        'type' => 'admin',
+                        'name' => $request->name,
+                        'code' => $request->code,
+                        'is_default' => 0,
+                        'rtl' => $request->direction,
+                        'keywords' => $defaultLang->customer_keywords
+                    ]);
+                }
             }
 
-            // delete all the reviews of this product
-            $reviews = $product->review()->get();
+            $menu = [];
+            $menu[] = [
+                'text' => 'Home',
+                "href" => "",
+                "icon" => "empty",
+                "target" => "_self",
+                "title" => "",
+                "type" => "home"
+            ];
+            $menu[] = [
+                'text' => 'Shops',
+                "href" => "",
+                "icon" => "empty",
+                "target" => "_self",
+                "title" => "",
+                "type" => "listings"
+            ];
+            $menu[] = [
+                'text' => 'Pricing',
+                "href" => "",
+                "icon" => "empty",
+                "target" => "_self",
+                "title" => "",
+                "type" => "pricing"
+            ];
+            $menu[] = [
+                'text' => 'Templates',
+                "href" => "",
+                "icon" => "empty",
+                "target" => "_self",
+                "title" => "",
+                "type" => "templates"
+            ];
+            $menu[] = [
+                'text' => 'Blog',
+                "href" => "",
+                "icon" => "empty",
+                "target" => "_self",
+                "title" => "",
+                "type" => "blog"
+            ];
+            $menu[] = [
+                'text' => 'Contact',
+                "href" => "",
+                "icon" => "empty",
+                "target" => "_self",
+                "title" => "",
+                "type" => "contact"
+            ];
 
-            if (count($reviews) > 0) {
-              foreach ($reviews as $review) {
-                $review->delete();
-              }
+            Menu::create([
+                'language_id' => $lang->id,
+                'menus' => json_encode($menu, true)
+            ]);
+        }
+
+        // duplicate First row of basic_settings for current language
+        $dbs = Language::where('is_default', 1)->first()->basic_setting;
+        $cols = json_decode($dbs, true);
+        $bs = new BS;
+        foreach ($cols as $key => $value) {
+            // if the column is 'id' [primary key] then skip it
+            if ($key == 'id') {
+                continue;
             }
 
-            // delete product featured image
-            $featImg = $product->featured_image;
-            @unlink(public_path('assets/img/products/featured-images/') . $featImg);
+            // create favicon image using default language image & save unique name in database
+            if ($key == 'favicon') {
+                // take default lang image
+                $dimg = url('/assets/front/img/') . '/' . $dbs->favicon;
 
-            // delete product slider images
-            $sldImgs = json_decode($product->slider_images);
+                // copy paste the default language image with different unique name
+                $filename = uniqid();
+                if (($pos = strpos($dbs->favicon, ".")) !== FALSE) {
+                    $ext = substr($dbs->favicon, $pos + 1);
+                }
+                $newImgName = $filename . '.' . $ext;
 
-            foreach ($sldImgs as $sldImg) {
-              @unlink(public_path('assets/img/products/slider-images/') . $sldImg);
+                @copy($dimg, public_path('assets/front/img/') . $newImgName);
+
+                // save the unique name in database
+                $bs[$key] = $newImgName;
+
+                // continue the loop
+                continue;
             }
 
-            // delete product zip file
-            $zipFile = $product->file;
-            @unlink(public_path('assets/file/products/') . $zipFile);
+            // create logo image using default language image & save unique name in database
+            if ($key == 'logo') {
+                // take default lang image
+                $dimg = url('/assets/front/img/') . '/' . $dbs->logo;
 
-            $product->delete();
-          }
+                // copy paste the default language image with different unique name
+                $filename = uniqid();
+                if (($pos = strpos($dbs->logo, ".")) !== FALSE) {
+                    $ext = substr($dbs->logo, $pos + 1);
+                }
+                $newImgName = $filename . '.' . $ext;
+
+                @copy($dimg, public_path('assets/front/img/') . $newImgName);
+
+                // save the unique name in database
+                $bs[$key] = $newImgName;
+
+                // continue the loop
+                continue;
+            }
+
+            // create logo image using default language image & save unique name in database
+            if ($key == 'preloader') {
+                // take default lang image
+                $dimg = url('/assets/front/img/') . '/' . $dbs->preloader;
+
+                // copy paste the default language image with different unique name
+                $filename = uniqid();
+                if (($pos = strpos($dbs->preloader, ".")) !== FALSE) {
+                    $ext = substr($dbs->preloader, $pos + 1);
+                }
+                $newImgName = $filename . '.' . $ext;
+
+                @copy($dimg, public_path('assets/front/img/') . $newImgName);
+
+                // save the unique name in database
+                $bs[$key] = $newImgName;
+
+                // continue the loop
+                continue;
+            }
+
+            // create logo image using default language image & save unique name in database
+            if ($key == 'maintenance_img') {
+                // take default lang image
+                $dimg = url('/assets/front/img/') . '/' . $dbs->maintenance_img;
+                // copy paste the default language image with different unique name
+                $filename = uniqid();
+                if (($pos = strpos($dbs->maintenance_img, ".")) !== FALSE) {
+                    $ext = substr($dbs->maintenance_img, $pos + 1);
+                }
+                $newImgName = $filename . '.' . $ext;
+
+                @copy($dimg, public_path('assets/front/img/') . $newImgName);
+
+                // save the unique name in database
+                $bs[$key] = $newImgName;
+
+                // continue the loop
+                continue;
+            }
+
+            // create breadcrumb image using default language image & save unique name in database
+            if ($key == 'breadcrumb') {
+                // take default lang image
+                $dimg = url('/assets/front/img/') . '/' . $dbs->breadcrumb;
+
+                // copy paste the default language image with different unique name
+                $filename = uniqid();
+                if (($pos = strpos($dbs->breadcrumb, ".")) !== FALSE) {
+                    $ext = substr($dbs->breadcrumb, $pos + 1);
+                }
+                $newImgName = $filename . '.' . $ext;
+
+                @copy($dimg, public_path('assets/front/img/') . $newImgName);
+
+                // save the unique name in database
+                $bs[$key] = $newImgName;
+
+                // continue the loop
+                continue;
+            }
+
+            // create footer_logo image using default language image & save unique name in database
+            if ($key == 'footer_logo') {
+                // take default lang image
+                $dimg = url('/assets/front/img/') . '/' . $dbs->footer_logo;
+
+                // copy paste the default language image with different unique name
+                $filename = uniqid();
+                if (($pos = strpos($dbs->footer_logo, ".")) !== FALSE) {
+                    $ext = substr($dbs->footer_logo, $pos + 1);
+                }
+                $newImgName = $filename . '.' . $ext;
+
+                @copy($dimg, public_path('assets/front/img/') . $newImgName);
+
+                // save the unique name in database
+                $bs[$key] = $newImgName;
+
+                // continue the loop
+                continue;
+            }
+
+            // create intro_main_image image using default language image & save unique name in database
+            if ($key == 'intro_main_image') {
+                // take default lang image
+                $dimg = url('/assets/front/img/') . '/' . $dbs->intro_main_image;
+
+                // copy paste the default language image with different unique name
+                $filename = uniqid();
+                if (($pos = strpos($dbs->intro_main_image, ".")) !== FALSE) {
+                    $ext = substr($dbs->intro_main_image, $pos + 1);
+                }
+                $newImgName = $filename . '.' . $ext;
+
+                @copy($dimg, public_path('assets/front/img/') . $newImgName);
+
+                // save the unique name in database
+                $bs[$key] = $newImgName;
+
+                // continue the loop
+                continue;
+            }
+
+            $bs[$key] = $value;
         }
-      }
+        $bs['language_id'] = $lang->id;
+        $bs->save();
 
-      /**
-       * delete vendor infos
-       */
-      $vendorInfos = $language->vendorInfo()->get();
-      foreach ($vendorInfos as $vendorInfo) {
-        $vendorInfo->delete();
-      }
+        // duplicate First row of basic_extendeds for current language
+        $dbe = Language::where('is_default', 1)->first()->basic_extended;
+        $be = BE::firstOrFail();
+        $cols = json_decode($be, true);
+        $be = new BE;
+        foreach ($cols as $key => $value) {
+            // if the column is 'id' [primary key] then skip it
+            if ($key == 'id') {
+                continue;
+            }
 
-      /**
-       * delete banner infos
-       */
-      $banners = $language->banner()->get();
-      foreach ($banners as $banner) {
-        @unlink(public_path('assets/img/banners/') . $banner->image);
-        $banner->delete();
-      }
+            // create hero image using default language image & save unique name in database
+            if ($key == 'hero_img') {
+                // take default lang image
+                $dimg = url('/assets/front/img/') . '/' . $dbe->hero_img;
 
-      /**
-       * delete workprocess infos
-       */
-      $workProcess = $language->workProcess()->get();
-      foreach ($workProcess as $workProces) {
-        $workProces->delete();
-      }
+                // copy paste the default language image with different unique name
+                $filename = uniqid();
+                if (($pos = strpos($dbe->hero_img, ".")) !== FALSE) {
+                    $ext = substr($dbe->hero_img, $pos + 1);
+                }
+                $newImgName = $filename . '.' . $ext;
 
-      /**
-       * delete about-us-section info
-       */
-      $aboutUsSecInfo = $language->aboutUsSection()->first();
-      if (!empty($aboutUsSecInfo)) {
-        $aboutUsSecInfo->delete();
-      }
+                @copy($dimg, public_path('assets/front/img/') . $newImgName);
 
-      /**
-       * delete features infos
-       */
-      $features = $language->featuresInfos()->get();
-      foreach ($features as $feature) {
-        $feature->delete();
-      }
+                // save the unique name in database
+                $be[$key] = $newImgName;
 
-
-      /**
-       * delete testimonial infos
-       */
-      $testimonials = $language->testimonial()->get();
-
-      if (count($testimonials) > 0) {
-        foreach ($testimonials as $testimonial) {
-          $clientImg = $testimonial->image;
-
-          @unlink(public_path('assets/img/clients/') . $clientImg);
-          $testimonial->delete();
+                // continue the loop
+                continue;
+            }
+            $be[$key] = $value;
         }
-      }
-      /**
-       * delete footer-content info
-       */
-      $footerContentInfo = $language->footerContent()->first();
+        $be['language_id'] = $lang->id;
+        $be->save();
 
-      if (!empty($footerContentInfo)) {
-        $footerContentInfo->delete();
-      }
-      /**
-       * delete footer-quick-links
-       */
-      $quickLinks = $language->footerQuickLink()->get();
-
-      if (count($quickLinks) > 0) {
-        foreach ($quickLinks as $quickLink) {
-          $quickLink->delete();
-        }
-      }
-      /**
-       * delete custom-page infos
-       */
-      $customPageInfos = $language->customPageInfo()->get();
-
-      if (count($customPageInfos) > 0) {
-        foreach ($customPageInfos as $customPageData) {
-          $customPageInfo = $customPageData;
-          $customPageData->delete();
-
-          // delete the custom-page if, this page does not contain any other page-content in any other language
-          $otherPageContents = PageContent::query()->where('language_id', '<>', $language->id)
-            ->where('page_id', '=', $customPageInfo->page_id)
-            ->get();
-
-          if (count($otherPageContents) == 0) {
-            $page = Page::query()->find($customPageInfo->page_id);
-            $page->delete();
-          }
-        }
-      }
-      /**
-       * delete blog-categories info
-       */
-      $blogCategories = $language->blogCategory()->get();
-
-      if (count($blogCategories) > 0) {
-        foreach ($blogCategories as $blogCategory) {
-          $blogCategory->delete();
-        }
-      }
-      /**
-       * delete blog infos
-       */
-      $blogInfos = $language->blogInformation()->get();
-
-      if (count($blogInfos) > 0) {
-        foreach ($blogInfos as $blogData) {
-          $blogInfo = $blogData;
-          $blogData->delete();
-
-          // delete the blog if, this blog does not contain any other blog-information in any other language
-          $otherBlogInfos = BlogInformation::query()->where('language_id', '<>', $language->id)
-            ->where('blog_id', '=', $blogInfo->blog_id)
-            ->get();
-
-          if (count($otherBlogInfos) == 0) {
-            $blog = Blog::query()->find($blogInfo->blog_id);
-            @unlink(public_path('assets/img/blogs/') . $blog->image);
-            $blog->delete();
-          }
-        }
-      }
-      /**
-       * delete faq infos
-       */
-      $faqs = $language->faq()->get();
-
-      if (count($faqs) > 0) {
-        foreach ($faqs as $faq) {
-          $faq->delete();
-        }
-      }
-      /**
-       * delete popup infos
-       */
-      $popups = $language->announcementPopup()->get();
-
-      if (count($popups) > 0) {
-        foreach ($popups as $popup) {
-          @unlink(public_path('assets/img/popups/') . $popup->image);
-          $popup->delete();
-        }
-      }
-
-      $pageNames = $language->pageName()->get();
-      foreach ($pageNames as $pageName) {
-        $pageName->delete();
-      }
-      $seoInfos = $language->seoInfo()->get();
-      foreach ($seoInfos as $seoInfo) {
-        $seoInfo->delete();
-      }
-      /**
-       * delete cookie-alert info
-       */
-      $cookieAlertInfo = $language->cookieAlertInfo()->first();
-
-      if (!empty($cookieAlertInfo)) {
-        $cookieAlertInfo->delete();
-      }
-      /**
-       * delete the language json file
-       */
-      @unlink(resource_path('lang/') . $language->code . '.json');
-      @unlink(resource_path('lang/') . 'admin_' . $language->code . '.json');
-      // Delete language folder and its contents
-      $dir = resource_path('lang/') . $language->code;
-      if (is_dir($dir)) {
-        $this->deleteDirectory($dir);
-      }
-
-      /**
-       * finally, delete the language info from db
-       */
-      $language->delete();
-
-      return redirect()->back()->with('success', __('Language deleted successfully!'));
-    }
-  }
-
-  /**
-   * Check the specified language is RTL or not.
-   *
-   * @param  int  $id
-   * @return \Illuminate\Http\Response
-   */
-  public function checkRTL($langid)
-  {
-    if ($langid > 0) {
-      $lang = Language::where('id', $langid)->first();
-    } else {
-      return 0;
+        Session::flash('success', __('Created Successfully'));
+        return "success";
     }
 
-    return $lang->direction;
-  }
+    public function edit($id)
+    {
+        if ($id > 0) {
+            $data['language'] = Language::findOrFail($id);
+        }
+        $data['id'] = $id;
 
-  //dashboard attribute
-  public function dashboardAttribute()
-  {
-    //update existing keys
-    $newKeys = [
-      'direction' => 'direction',
-      'keyword' => 'keyword',
-      'name' => 'name',
-      'username' => 'username',
-      'email' => 'email address',
-      'first_name' => 'first name',
-      'last_name' => 'last name',
-      'password' => 'password',
-      'password_confirmation' => 'confirm password',
-      'city' => 'city',
-      'country' => 'country',
-      'address' => 'address',
-      'phone' => 'phone',
-      'mobile' => 'mobile',
-      'age' => 'age',
-      'sex' => 'sex',
-      'gender' => 'gender',
-      'day' => 'day',
-      'month' => 'month',
-      'year' => 'year',
-      'hour' => 'hour',
-      'minute' => 'minute',
-      'second' => 'second',
-      'title' => 'title',
-      'subtitle' => 'subtitle',
-      'text' => 'text',
-      'description' => 'description',
-      'content' => 'content',
-      'occupation' => 'occupation',
-      'comment' => 'comment',
-      'rating' => 'rating',
-      'terms' => 'terms',
-      'question' => 'question',
-      'answer' => 'answer',
-      'status' => 'status',
-      'term' => 'term',
-      'price' => 'price',
-      'amount' => 'amount',
-      'date' => 'date',
-      'latitude' => 'latitude',
-      'longitude' => 'longitude',
-      'value' => 'value',
-      'type' => 'type',
-      'code' => 'code',
-      'url' => 'url',
-      'stock' => 'stock',
-      'delay' => 'delay',
-      'image' => 'image',
-      'language_id' => 'language',
-      'serial_number' => 'serial number',
-      'category_id' => 'category',
-      'slider_images' => 'slider images',
-      'order_number' => 'order number',
-      'staff_image' => 'staff image',
-      'start_time' => 'start time',
-      'end_time' => 'end time',
-      'start_date' => 'start date',
-      'end_date' => 'end date',
-      'product_tax_amount' => 'product tax amount',
-      'shipping_charge' => 'shipping charge',
-      'short_text' => 'short text',
-      'featured_image' => 'featured image',
-      'current_price' => 'current price',
-      'min_limit' => 'min limit',
-      'max_limit' => 'max limit',
-      'email_address' => 'email address',
-      'contact_number' => 'contact number',
-      'new_password' => 'new password',
-      'new_password_confirmation' => 'new password confirmation',
-      'google_adsense_publisher_id' => 'google adsense publisher id',
-      'ad_type' => 'ad type',
-      'resolution_type' => 'resolution type',
-      'button_text' => 'button text',
-      'button_url' => 'button url',
-      'background_color_opacity' => 'background color opacity',
-      'base_currency_symbol' => 'base currency symbol',
-      'base_currency_symbol_position' => 'base currency symbol position',
-      'base_currency_text' => 'base currency text',
-      'base_currency_text_position' => 'base currency text position',
-      'base_currency_rate' => 'base currency rate',
-      'website_title' => 'website title',
-      'secondary_color' => 'secondary color',
-      'primary_color' => 'primary color',
-      'preloader' => 'preloader',
-      'logo' => 'logo',
-      'favicon' => 'favicon',
-      'smtp_host' => 'smtp host',
-      'smtp_port' => 'smtp port',
-      'encryption' => 'encryption',
-      'from_name' => 'from name',
-      'from_mail' => 'from mail',
-      'smtp_password' => 'smtp password',
-      'smtp_username' => 'smtp username',
-      'mail_subject' => 'mail subject',
-      'subject' => 'subject',
-      'mail_body' => 'mail body',
-      'cookie_alert_text' => 'cookie alert text',
-      'role_id' => 'role_id',
-      "paypal_status" => "paypal status",
-      "paypal_sandbox_status" => "paypal sandbox status",
-      "paypal_client_id" => "paypal client ID",
-      "paypal_client_secret" => "paypal client secret",
-      "instamojo_status" => "instamojo status",
-      "instamojo_sandbox_status" => "instamojo sandbox status",
-      "instamojo_key" => "instamojo API key",
-      "instamojo_token" => "instamojo auth token",
-      "paytm_status" => "paytm status",
-      "paytm_environment" => "paytm environment",
-      "paytm_merchant_key" => "paytm merchant key",
-      "paytm_merchant_mid" => "paytm merchant MID",
-      "paytm_merchant_website" => "paytm merchant website",
-      "paytm_industry_type" => "paytm industry type",
-      "stripe_status" => "stripe status",
-      "stripe_key" => "stripe key",
-      "stripe_secret" => "stripe secret",
-      "flutterwave_status" => "flutterwave status",
-      "flutterwave_public_key" => "flutterwave public key",
-      "flutterwave_secret_key" => "flutterwave secret key",
-      "razorpay_status" => "razorpay status",
-      "razorpay_key" => "razorpay key",
-      "razorpay_secret" => "razorpay secret",
-      "mollie_status" => "mollie status",
-      "mollie_key" => "mollie API key",
-      "paystack_status" => "paystack status",
-      "paystack_key" => "paystack API key",
-      "mercadopago_status" => "mercadopago status",
-      "mercadopago_sandbox_status" => "mercadopago sandbox status",
-      "mercadopago_token" => "mercadopago token",
-      "authorize_net_status" => "Authorize.Net status",
-      "sandbox_check" => "sandbox check",
-      "login_id" => "login ID",
-      "transaction_key" => "transaction key",
-      "public_key" => "public key",
-      "google_map_api_key" => "google map api key",
-      "google_map_radius" => "google map radius",
-      "zoom_account_id" => "zoom account id",
-      "zoom_client_id" => "zoom client id",
-      "zoom_client_secret" => "zoom client secret",
-      "disqus_short_name" => "disqus short name",
-      "tawkto_status" => "tawkto status",
-      "tawkto_direct_chat_link" => "tawkto direct chat link",
-      "calender_id" => "calender id",
-      "whatsapp_number" => "whatsapp number",
-      "whatsapp_header_title" => "whatsapp header title",
-      "whatsapp_popup_message" => "whatsapp popup message",
-      "google_recaptcha_site_key" => "googlerecaptasitekey",
-      "google_recaptcha_status" => "googlerecaptastatus",
-      "google_recaptcha_secret_key" => "googlerecaptasecretkey",
-      "google_client_id" => "googleclientid",
-      "google_client_secret" => "googleclientsecret",
-      "google_login_status" => "googleloginstatus",
-      "current_password" => "current password"
-    ];
-
-    return $newKeys;
-  }
-
-  //front attribute
-  public function frontAttribute()
-  {
-    $newKeys = [
-      'name' => 'name',
-      'first_name' => 'first name',
-      'gateway' => 'gateway',
-      'phone' => 'phone',
-      'address' => 'address',
-      'email' => 'email address',
-      'subject' => 'subject',
-      'message' => 'message',
-      'username' => 'username',
-      'password' => 'password',
-      'password_confirmation' => 'confirm password',
-      'new_password' => 'new password',
-      'new_password_confirmation' => 'new confirm password'
-    ];
-
-    return $newKeys;
-  }
-
-  public function updateValidationAttribute($newKeys, $content, $validationFilePath)
-  {
-    try {
-      // Load the existing validation array
-      $validation = include($validationFilePath);
-
-      // Ensure 'attributes' key exists
-      if (!isset($validation['attributes']) || !is_array($validation['attributes'])) {
-        $validation['attributes'] = [];
-      }
-    } catch (\Exception $e) {
-      session()->flash('warning', __('Please provide a valid language code!'));
-      return;
+        return view('admin.language.edit', $data);
     }
 
 
-    //update existing keys
-    foreach ($newKeys as $key => $value) {
-      if (!array_key_exists($key, $validation['attributes'])) {
-        $validation['attributes'][$key] = $value;
-      }
-    }
+    public function update(Request $request)
+    {
+        $language = Language::findOrFail($request->language_id);
 
-    // update values which matching keys with new values
-    $decodedContent = json_decode($content, true);
-    if (is_array($decodedContent)) {
-      foreach ($decodedContent as $key => $value) {
-        if (array_key_exists($key, $validation['attributes'])) {
-          $validation['attributes'][$key] = $value;
+        $rules = [
+            'name' => 'required|max:255',
+            'code' => [
+                'required',
+                'max:255',
+                Rule::unique('languages')->ignore($language->id),
+            ],
+            'direction' => 'required'
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+        if ($validator->fails()) {
+            $validator->getMessageBag()->add('error', 'true');
+            return response()->json($validator->errors());
         }
-      }
+
+        //delete old file
+        @unlink(resource_path('lang/') . $language->code . '.json');
+        @unlink(resource_path('lang/') . 'admin_' . $language->code . '.json');
+        @unlink(resource_path('lang/') . 'user_' . $language->code . '.json');
+
+        //add new file name for admin front
+        $data = file_get_contents(resource_path('lang/') . 'default.json');
+        $json_file = trim(strtolower($request->code)) . '.json';
+        $path = resource_path('lang/') . $json_file;
+
+        //add new file name for admin dashboard
+        $adminData = file_get_contents(resource_path('lang/') . 'admin_default.json');
+        $admin_json = trim(strtolower('admin_' . $request->code)) . '.json';
+        $adminPath = resource_path('lang/') . $admin_json;
+
+        //add new file name for admin dashboard
+        $userData = file_get_contents(resource_path('lang/') . 'user_default.json');
+        $user_json = trim(strtolower('user_' . $request->code)) . '.json';
+        $userPath = resource_path('lang/') . $user_json;
+
+        File::put($path, $data);
+        File::put($adminPath, $adminData);
+        File::put($userPath, $userData);
+
+        $language->name = $request->name;
+        $language->code = $request->code;
+        $language->rtl = $request->direction;
+        $language->save();
+
+        Session::flash('success', __('Updated Successfully'));
+        return "success";
     }
 
-    //save the changes in validation attributes array
-    $validationContent = "<?php\n\nreturn " . var_export($validation, true) . ";\n";
-    file_put_contents($validationFilePath, $validationContent);
-  }
+    public function editKeyword($id)
+    {
+        if ($id > 0) {
+            $la = Language::findOrFail($id);
+            $path = resource_path('lang/') . $la->code . '.json';
+            if (File::exists($path)) {
+                $json = file_get_contents(resource_path('lang/') . $la->code . '.json');
+                $json = json_decode($json, true);
+                $list_lang = Language::all();
+            } else {
+                $json = null;
+            }
 
-  //delete a directory recursively
-  private function deleteDirectory($dir)
-  {
-    $files = array_diff(scandir($dir), ['.', '..']);
-    foreach ($files as $file) {
-      $filePath = "$dir/$file";
-      if (is_dir($filePath)) {
-        $this->deleteDirectory($filePath);
-      } else {
-        @unlink($filePath);
-      }
+            return view('admin.language.edit-keyword', compact('json', 'la'));
+        } elseif ($id == 0) {
+            $json = file_get_contents(resource_path('lang/') . 'default.json');
+            $json = json_decode($json, true);
+            if (empty($json)) {
+                return back()->with('alert', __('File Not Found'));
+            }
+            return view('admin.language.edit-keyword', compact('json'));
+        }
     }
-    rmdir($dir);
-  }
+
+    public function updateKeyword(Request $request, $id)
+    {
+        $lang = Language::findOrFail($id);
+        $content = json_encode($request->keys);
+        if ($content === 'null') {
+            return back()->with('alert', __('At Least One Field Should Be Fill-up'));
+        }
+        file_put_contents(resource_path('lang/') . $lang->code . '.json', $content);
+
+        //=====validation messages
+        $validationData = include resource_path('lang/' . $lang->code . '/validation.php');
+        $validationAttributes = $validationData['attributes'];
+        $validationFilePath = resource_path('lang/' . $lang->code . '/validation.php');
+
+        if (is_array($validationAttributes)) {
+            foreach ($this->validationMessageFrontend() as $key => $value) {
+                if (!array_key_exists($key, $validationAttributes)) {
+                    $validationAttributes[$key] = $value;
+                }
+            }
+        }
+
+        foreach ($request->keys as $key => $value) {
+            if (array_key_exists($key, $validationAttributes)) {
+                $validationAttributes[$key] = $value;
+            }
+        }
+
+        $validationData['attributes'] = $validationAttributes;
+        $validationContent = "<?php\n\nreturn " . var_export($validationData, true) . ";\n";
+
+        file_put_contents($validationFilePath, $validationContent);
+        return back()->with('success', __('Updated successfully'));
+    }
+
+
+    public function delete($id)
+    {
+        $la = Language::findOrFail($id);
+        if ($la->is_default == 1) {
+            return back()->with('warning', __('The default language cannot be deleted'));
+        }
+        @unlink(public_path('assets/front/img/languages/') . $la->icon);
+        @unlink(resource_path('lang/') . $la->code . '.json');
+        @unlink(resource_path('lang/admin_') . $la->code . '.json');
+        @unlink(resource_path('lang/user_') . $la->code . '.json');
+
+        File::deleteDirectory(resource_path('lang/') . 'admin_' . $la->code);
+        File::deleteDirectory(resource_path('lang/') . 'user_' . $la->code);
+
+        if (session()->get('lang') == $la->code) {
+            session()->forget('lang');
+        }
+
+        // deleting basic_settings and basic_extended for corresponding language & unlink images
+        $bs = $la->basic_setting;
+        if (!empty($bs)) {
+            $dir = public_path('assets/front/img/');
+            @unlink($dir . $bs->favicon);
+
+            @unlink($dir . $bs->logo);
+
+            @unlink($dir . $bs->preloader);
+
+            @unlink($dir . $bs->breadcrumb);
+
+            @unlink($dir . $bs->intro_main_image);
+
+            @unlink($dir . $bs->footer_logo);
+
+            @unlink($dir . $bs->maintenance_img);
+
+            $bs->delete();
+        }
+        $be = $la->basic_extended;
+        if (!empty($be)) {
+            @unlink($dir . $be->hero_img);
+            $be->delete();
+        }
+
+        // deleting pages for corresponding language
+        if (!empty($la->pages)) {
+            $la->pages()->delete();
+        }
+
+        // deleting testimonials for corresponding language
+        if (!empty($la->testimonials)) {
+            $testimonials = $la->testimonials;
+            foreach ($testimonials as $testimonial) {
+                @unlink(public_path('assets/front/img/testimonials/') . $testimonial->image);
+                $testimonial->delete();
+            }
+        }
+
+        // deleting feature for corresponding language
+        if (!empty($la->features)) {
+            $features = $la->features;
+            foreach ($features as $feature) {
+                $feature->delete();
+            }
+        }
+
+        // deleting services for corresponding language
+        if (!empty($la->blogs)) {
+            $blogs = $la->blogs;
+            foreach ($blogs as $blog) {
+                @unlink(public_path('assets/front/img/blogs/') . $blog->main_image);
+                $blog->delete();
+            }
+        }
+
+        // deleting blog categories for corresponding language
+        if (!empty($la->bcategories)) {
+            $bcategories = $la->bcategories;
+            foreach ($bcategories as $bcat) {
+                $bcat->delete();
+            }
+        }
+
+        // deleting partners for corresponding language
+        if (!empty($la->partners)) {
+            $partners = $la->partners;
+            foreach ($partners as $partner) {
+                @unlink(public_path('assets/front/img/partners/') . $partner->image);
+                $partner->delete();
+            }
+        }
+
+        // deleting processes for corresponding language
+        if (!empty($la->processes)) {
+            $processes = $la->processes;
+            foreach ($processes as $process) {
+                @unlink(public_path('assets/front/img/process/') . $process->image);
+                $process->delete();
+            }
+        }
+
+        // deleting partners for corresponding language
+        if (!empty($la->popups)) {
+            $popups = $la->popups;
+            foreach ($popups as $popup) {
+                @unlink(public_path('assets/front/img/popups/') . $popup->background_image);
+                @unlink(public_path('assets/front/img/popups/') . $popup->image);
+                $popup->delete();
+            }
+        }
+
+        // deleting useful links for corresponding language
+        if (!empty($la->ulinks)) {
+            $la->ulinks()->delete();
+        }
+
+        // deleting faqs for corresponding language
+        if (!empty($la->faqs)) {
+            $la->faqs()->delete();
+        }
+
+        // deleting menus for corresponding language
+        if (!empty($la->menus)) {
+            $la->menus()->delete();
+        }
+
+        // deleting seo for corresponding language
+        if (!empty($la->seo)) {
+            $la->seo->delete();
+        }
+
+        // if the the deletable language is the currently selected language in frontend then forget the selected language from session
+        session()->forget('lang');
+
+        $la->delete();
+        return back()->with('success', __('Deleted successfully'));
+    }
+
+    public function default(Request $request, $id)
+    {
+        Language::where('is_default', 1)->update(['is_default' => 0]);
+        $lang = Language::find($id);
+        $lang->is_default = 1;
+        $lang->save();
+        return back()->with('success', $lang->name . ' ' . __('laguage is set as defualt'));
+    }
+    public function dashboardDefault(Request $request, $id)
+    {
+        Language::where('dashboard_default', 1)->update(['dashboard_default' => 0]);
+        $lang = Language::find($id);
+        $lang->dashboard_default = 1;
+        $lang->save();
+        Session::put('admin_lang', 'admin_' . $lang->code);
+        app()->setLocale('admin_' . $lang->code);
+        return back()->with('success', $lang->name . ' ' . __('laguage is set as defualt'));
+    }
+
+    public function rtlcheck($langid)
+    {
+        if ($langid > 0) {
+            $lang = Language::find($langid);
+        } else {
+            return 0;
+        }
+
+        return $lang->rtl;
+    }
+
+    public function addKeyword(Request $request)
+    {
+        $rules = [
+            'keyword' => 'required'
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->getMessageBag()->toArray()
+            ], 400);
+        }
+        $languages = Language::get();
+        foreach ($languages as $language) {
+            // get all the keywords of the selected language
+            $jsonData = file_get_contents(resource_path('lang/') . $language->code . '.json');
+
+            // convert json encoded string into a php associative array
+            $keywords = json_decode($jsonData, true);
+            $datas = [];
+            $datas[$request->keyword] = $request->keyword;
+
+            foreach ($keywords as $key => $keyword) {
+                $datas[$key] = $keyword;
+            }
+            //put data
+            $jsonData = json_encode($datas);
+
+            $fileLocated = resource_path('lang/') . $language->code . '.json';
+
+            // put all the keywords in the selected language file
+            file_put_contents($fileLocated, $jsonData);
+        }
+
+        //for default json
+        // get all the keywords of the selected language
+        $jsonData = file_get_contents(resource_path('lang/') . 'default.json');
+
+        // convert json encoded string into a php associative array
+        $keywords = json_decode($jsonData, true);
+        $datas = [];
+        $datas[$request->keyword] = $request->keyword;
+
+        foreach ($keywords as $key => $keyword) {
+            $datas[$key] = $keyword;
+        }
+        //put data
+        $jsonData = json_encode($datas);
+
+        $fileLocated = resource_path('lang/') . 'default.json';
+
+        // put all the keywords in the selected language file
+        file_put_contents($fileLocated, $jsonData);
+
+        Session::flash('success', __('Created Successfully'));
+        return 'success';
+    }
+
+    public function addKeywordForAdmin(Request $request)
+    {
+        $rules = [
+            'keyword' => 'required'
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->getMessageBag()->toArray()
+            ], 400);
+        }
+        $languages = Language::get();
+        foreach ($languages as $language) {
+            // get all the keywords of the selected language
+            $jsonData = file_get_contents(resource_path('lang/') . 'admin_' . $language->code . '.json');
+
+            // convert json encoded string into a php associative array
+            $keywords = json_decode($jsonData, true);
+            $datas = [];
+            $datas[$request->keyword] = $request->keyword;
+
+            foreach ($keywords as $key => $keyword) {
+                $datas[$key] = $keyword;
+            }
+            //put data
+            $jsonData = json_encode($datas);
+
+            $fileLocated = resource_path('lang/') . 'admin_' . $language->code . '.json';
+
+            // put all the keywords in the selected language file
+            file_put_contents($fileLocated, $jsonData);
+        }
+
+        //for default json
+        // get all the keywords of the selected language
+        $jsonData = file_get_contents(resource_path('lang/') . 'admin_default.json');
+
+        // convert json encoded string into a php associative array
+        $keywords = json_decode($jsonData, true);
+        $datas = [];
+        $datas[$request->keyword] = $request->keyword;
+
+        foreach ($keywords as $key => $keyword) {
+            $datas[$key] = $keyword;
+        }
+        //put data
+        $jsonData = json_encode($datas);
+
+        $fileLocated = resource_path('lang/') . 'admin_default.json';
+
+        // put all the keywords in the selected language file
+        file_put_contents($fileLocated, $jsonData);
+
+        Session::flash('success', __('Created Successfully'));
+        return 'success';
+    }
+
+    public function editAdminKeyword($id)
+    {
+        if ($id > 0) {
+            $la = Language::findOrFail($id);
+            $path = resource_path('lang/') . 'admin_' . $la->code . '.json';
+            if (File::exists($path)) {
+                $json = file_get_contents(resource_path('lang/') . 'admin_' . $la->code . '.json');
+                $json = json_decode($json, true);
+                $list_lang = Language::all();
+                if (empty($json)) {
+                    return back()->with('alert', __('File Not Found'));
+                }
+            } else {
+                $json = null;
+            }
+
+            return view('admin.language.edit-admin-keyword', compact('json', 'la'));
+        } elseif ($id == 0) {
+            $json = file_get_contents(resource_path('lang/') . 'admin_default.json');
+            $json = json_decode($json, true);
+            if (empty($json)) {
+                return back()->with('alert', __('File Not Found.'));
+            }
+            return view('admin.language.edit-admin-keyword', compact('json'));
+        }
+    }
+
+    public function updateAdminKeyword(Request $request, $id)
+    {
+        $language = Language::findOrFail($id);
+        $newkeywordsArr = $request['keys'];
+        if (count($newkeywordsArr) === 0) {
+            return back()->with('alert', __('At least one field should be filled out'));
+        }
+        //=== language messages
+        $existingkeywordsArr = [];
+        $fileLocated = resource_path('lang/') . 'admin_' . $language->code . '.json';
+        if (file_exists($fileLocated)) {
+            $existingkeywordsArr = json_decode(file_get_contents($fileLocated), true) ?? [];
+        }
+        $requestKeywordsArr = array_merge($existingkeywordsArr, $newkeywordsArr);
+        file_put_contents(resource_path('lang/') . 'admin_' . $language->code . '.json', json_encode($requestKeywordsArr));
+
+        //=====validation messages
+        $validationData = include resource_path('lang/admin_' . $language->code . '/validation.php');
+        $validationAttributes = $validationData['attributes'];
+        $validationFilePath = resource_path('lang/admin_' . $language->code . '/validation.php');
+
+        if (is_array($validationAttributes)) {
+            foreach ($this->validationMessage() as $key => $value) {
+                if (!array_key_exists($key, $validationAttributes)) {
+                    $validationAttributes[$key] = $value;
+                }
+            }
+        }
+
+        foreach ($requestKeywordsArr as $key => $value) {
+            if (array_key_exists($key, $validationAttributes)) {
+                $validationAttributes[$key] = $value;
+            }
+        }
+
+        $validationData['attributes'] = $validationAttributes;
+        $validationContent = "<?php\n\nreturn " . var_export($validationData, true) . ";\n";
+
+        file_put_contents($validationFilePath, $validationContent);
+
+        return back()->with('success', __('Updated Successfully'));
+    }
+
+    public function editUserKeyword($id)
+    {
+        if ($id > 0) {
+            $la = Language::findOrFail($id);
+           $path = resource_path('lang/') . 'user_' . $la->code . '.json';
+            if (File::exists($path)) {
+                $json = file_get_contents(resource_path('lang/') . 'user_' . $la->code . '.json');
+                $json = json_decode($json, true);
+                $list_lang = Language::all();
+            } else {
+                $json = null;
+            }
+
+            return view('admin.language.user-dashboard-keyword', compact('json', 'la'));
+        } elseif ($id == 0) {
+            $json = file_get_contents(resource_path('lang/') . 'user_default.json');
+            $json = json_decode($json, true);
+            if (empty($json)) {
+                return back()->with('alert', __('File Not Found'));
+            }
+            return view('admin.language.user-dashboard-keyword', compact('json'));
+        }
+    }
+
+    public function updateUserDashboardKeyword($id, Request $request)
+    {
+        $lang = Language::findOrFail($id);
+        $content = json_encode($request->keys);
+        if ($content === 'null') {
+            return back()->with('alert', __('At Least One Field Should Be Fill-up'));
+        }
+
+        // Load validation attributes
+        $validationFilePath = resource_path('lang/user_' . $lang->code . '/validation.php');
+        //update existing attributes
+        $newKeys = $this->validationMessage();
+        $this->updateValidationAttribute($newKeys, $content, $validationFilePath);
+
+        file_put_contents(resource_path('lang/') . 'user_' . $lang->code . '.json', $content);
+        return  back()->with('success', __('Updated Successfully'));
+    }
+
+    public function editUserFrontendKeyword($id)
+    {
+        $la = Language::findOrFail($id);
+        $json = json_decode($la->customer_keywords, true);
+        return view('admin.language.edit-user-frontend-keyword', compact('json', 'la'));
+    }
+
+    public function updateCustomerKeyword($id, Request $request)
+    {
+        $lang = Language::findOrFail($id);
+        $content = json_encode($request->keys);
+        if ($content === 'null') {
+            return back()->with('alert', __('At Least One Field Should Be Fill-up'));
+        }
+        $lang->customer_keywords = $content;
+        $lang->save();
+
+        Session::flash('success', __('Updated successfully'));
+        return back();
+    }
+
+    protected function validationMessage()
+    {
+        return [
+            "possition" => "possition",
+            "serial_number" => "serial number",
+            "icon" => "icon",
+            "amount" => "amount",
+            "color" => "color",
+            "title" => "title",
+            "about_features_section_status" => "about features section status",
+            "about_work_process_section_status" => "about work process section status",
+            "about_counter_section_status" => "about counter section status",
+            "about_testimonial_section_status" => "about testimonial section status",
+            "about_blog_section_status" => "about blog_section status",
+            "additional_sections" => "additional sections",
+            "email_type" => "email type",
+            "email_subject" => "email subject",
+            "email_body" => "email body",
+            "is_smtp" => "is smtp",
+            "smtp_host" => "smtp host",
+            "encryption" => "encryption",
+            "smtp_username" => "smtp username",
+            "smtp_password" => "smtp password",
+            "from_mail" => "from mail",
+            "to_mail" => "to mail",
+            "url" => "url",
+            "file" => "file",
+            "cookie_alert_status" => "cookie alert status",
+            "cookie_alert_button_text" => "cookie alert button text",
+            "cookie_alert_text" => "cookie alert text",
+            "website_title" => "website title",
+            "favicon" => "favicon",
+            "logo" => "logo",
+            "preloader" => "preloader",
+            "preloader_status" => "preloader status",
+            "timezone" => "timezone",
+            "base_color" => "base color",
+            "base_color_2" => "base color two",
+            "base_currency_symbol" => "base currency symbol",
+            "base_currency_symbol_position" => "base currency symbol position",
+            "base_currency_text" => "base currency text",
+            "base_currency_text_position" => "base currency text position",
+            "base_currency_rate" => "base currency rate",
+            "maintenance_status" => "maintenance mode status",
+            "maintainance_text" => "maintainance mode text",
+            "secret_path" => "secret path",
+            "name" => "name",
+            "status" => "status",
+            "image" => "image",
+            "category" => "category",
+            "content" => "content",
+            "success_message" => "success message",
+            "cname_record_section_title" => "cname record section title",
+            "cname_record_section_text" => "cname record section text",
+            "email" => "email",
+            "subject" => "subject",
+            "message" => "message",
+            "question" => "question",
+            "answer" => "answer",
+            "footer_text" => "footer text",
+            "useful_links_title" => "useful links title",
+            "contact_info_title" => "contact info title",
+            "newsletter_title" => "newsletter title",
+            "newsletter_subtitle" => "newsletter subtitle",
+            "copyright_text" => "copyright text",
+            "short_description" => "short description",
+            "instructions" => "instructions",
+            "is_receipt" => "receipt image",
+            "key" => "key",
+            "secret_key" => "secret key",
+            "perfect_money_wallet_id" => "perfect money wallet id",
+            "token" => "token",
+            "public_key" => "public key",
+            "secret" => "secret",
+            "server_key" => "server key",
+            "client_id" => "client id",
+            "client_secret" => "client secret",
+            "category_code" => "category code",
+            "login_id" => "login id",
+            "transaction_key" => "transaction key",
+            "api_key" => "api key",
+            "country" => "country",
+            "profile_id" => "profile id",
+            "api_endpoint" => "api endpoint",
+            "merchant_id" => "merchant id",
+            "salt_key" => "salt key",
+            "salt_index" => "salt index",
+            "merchant id" => "merchant id",
+            "website" => "Merchant website",
+            "industry" => "industry type id",
+            "text" => "text",
+            "hero_section_title" => "hero section title",
+            "hero_section_text" => "hero section text",
+            "hero_section_desc" => "hero section description",
+            "hero_section_button_text" => "hero section button text",
+            "hero_section_button_url" => "hero section button url",
+            "hero_section_video_url" => "hero section video url",
+            "designation" => "designation",
+            "comment" => "comment",
+            "intro_title" => "title",
+            "intro_subtitle" => "subtitle",
+            "intro_text" => "text",
+            "intro_button_text" => "button text",
+            "intro_button_url" => "button url",
+            "intro_video_url" => "video url",
+            "partner_title" => "partner section title",
+            "partner_subtitle" => "partner section subtitle",
+            "work_process_title" => "work process section title",
+            "preview_templates_title" => "preview templates section title",
+            "preview_templates_subtitle" => "preview templates section subtitle",
+            "pricing_title" => "pricing section title",
+            "pricing_subtitle" => "pricing section subtitle",
+            "featured_users_title" => "featured shop section title",
+            "featured_users_subtitle" => "featured shop section subtitle",
+            "testimonial_title" => "testimonial section title",
+            "blog_subtitle" => "blog section subtitle",
+            "code" => "code",
+            "direction" => "direction",
+            "keyword" => "keyword",
+            "price" => "price",
+            "term" => "term",
+            "featured" => "featured",
+            "recommended" => "recommended",
+            "post_limit" => "post limit",
+            "product_limit" => "product limit",
+            "categories_limit" => "categories limit",
+            "subcategories_limit" => "subcategories limit",
+            "order_limit" => "order limit",
+            "number_of_custom_page" => "number of custom page",
+            "language_limit" => "language limit",
+            "is_trial" => "trial",
+            "trial_days" => "trial days",
+            "expiration_reminder" => "expiration reminder",
+            "body" => "body",
+            "background_image" => "background image",
+            "end_date" => "end date",
+            "end_time" => "end time",
+            "background_color" => "background color",
+            "background_opacity" => "background opacity",
+            "button_text" => "button text",
+            "button_color" => "button color",
+            "button_url" => "button url",
+            "delay" => "delay",
+            "old_password" => "old password",
+            "password_confirmation" => "password confirmation",
+            "first_name" => "first name",
+            "last_name" => "last name",
+            "vapid_public_key" => "vapid public key",
+            "vapid_private_key" => "vapid private key",
+            "package_id" => "package",
+            "payment_method" => "payment method",
+            "npass" => "new password",
+            "cfpass" => "confirm password",
+            "preview_image" => "preview image",
+            "sitemap_url" => "sitemap url",
+            "role_id" => "role",
+            "contact_addresses" => "contact addresses",
+            "contact_text" => "contact text",
+            "contact_numbers" => "contact numbers",
+            "contact_mails" => "contact mails",
+            "subtitle" => "subtitle",
+            "rating" => "rating",
+            "user_language_id" => "language",
+            "language_id" => "language",
+            "header_text" => "header text",
+            "header_middle_text" => "header middle text",
+            "banner_url" => "banner url",
+            "btn_text" => "button text",
+            "side_image" => "side image",
+            "featured_img" => "featured img",
+            "hero_section_background_image" => "hero section background image",
+            "slider_img" => "slider image",
+            "btn_name" => "button name",
+            "btn_url" => "button url",
+            "video_url" => "video url",
+            "video_button_text" => "video button text",
+            "tabImage_img" => "Image",
+            "tabImage_url" => "url",
+            "type" => "type",
+            "value" => "value",
+            "start_date" => "start date",
+            "minimum_spend" => "minimum spend",
+            "charge" => "charge",
+            "category_id" => "category",
+            "sub_category_id" => "subcategory",
+            "stock" => "stock",
+            "file_type" => "file type",
+            "download_file" => "download file",
+            "sku" => "sku",
+            "current_price" => "current price",
+            "previous_price" => "previous price",
+            "tax" => "tax",
+            "top_selling_count" => "top selling count",
+            "size" => "size",
+            "margin" => "margin",
+            "sign" => "sign",
+            "currency_position" => "currency position",
+            "smtp_port" => "smtp port",
+            "from_name" => "from name",
+            "occupation" => "occupation",
+            "external_link_status" => "external link status",
+            "external_link" => "external link",
+            "short_details" => "short details",
+            "video" => "video",
+            "summary_background_color" => "summary background color",
+            "call_button_color" => "call button color",
+            "whatsapp_button_color" => "whatsapp button color",
+            "mail_button_color" => "mail button color",
+            "add_to_contact_button_color" => "add to contact button color",
+            "phone_icon_color" => "phone icon color",
+            "email_icon_color" => "email icon color",
+            "address_icon_color" => "address icon color",
+            "website_url_icon_color" => "website url icon color",
+            "profile_image" => "profile image",
+            "cover_image" => "cover image",
+            "company" => "company",
+            "address" => "address",
+            "phone" => "phone",
+            "website_url" => "website url",
+            "introduction" => "introduction",
+            "city" => "city",
+            "state" => "state",
+            "thumbnail" => "thumbnail",
+            "symbol" => "symbol",
+            "password" => "password",
+            "old_password" => "current password",
+        ];
+    }
+    protected function validationMessageFrontend()
+    {
+        return [
+            'first_name'       => 'first name',
+            'last_name'        => 'last name',
+            'username'         => 'username',
+            'password'         => 'password',
+            'email'            => 'email',
+            'phone'            => 'phone',
+            'city'             => 'city',
+            'country'          => 'country',
+            'price'            => 'price',
+            'payment_method'   => 'payment method',
+            'receipt'          => 'receipt',
+            'stripeToken'      => 'stripe token',
+            'opaqueDataDescriptor' => 'opaqueDataDescriptor',
+            'post_code'        => 'post code',
+            'identity_number'  => 'identity number',
+            'current_password' => 'current password',
+            'new_password'     => 'new password',
+            'new_password_confirmation' => 'new password confirmation',
+            'shipping_fname'   => 'shipping fname',
+            'shipping_lname'   => 'shipping lname',
+            'shipping_email'   => 'shipping email',
+            'shipping_number'  => 'shipping number',
+            'shipping_city'    => 'shipping city',
+            'shipping_address' => 'shipping address',
+            'shipping_country' => 'shipping country',
+            "billing_fname"    => 'billing fname',
+            "billing_lname"    => 'billing lname',
+            "billing_email"    => 'billing email',
+            "billing_number"   => 'billing number',
+            "billing_city"     => 'billing city',
+            "billing_address"  => 'billing address',
+            "billing_country"  => 'billing country',
+            "fullname"  => 'full name',
+            "subject"  => 'subject',
+            "message"  => 'message',
+        ];
+    }
+
+
+    public function updateValidationAttribute($newKeys, $content, $validationFilePath)
+    {
+        try {
+            // Load the existing validation array
+            $validation = include($validationFilePath);
+
+            // Ensure 'attributes' key exists
+            if (!isset($validation['attributes']) || !is_array($validation['attributes'])) {
+                $validation['attributes'] = [];
+            }
+        } catch (\Exception $e) {
+            session()->flash('warning', __('Please provide a valid language code!'));
+            return;
+        }
+
+
+        //update existing keys
+        foreach ($newKeys as $key => $value) {
+            if (!array_key_exists($key, $validation['attributes'])) {
+                $validation['attributes'][$key] = $value;
+            }
+        }
+
+        // update values which matching keys with new values
+        $decodedContent = json_decode($content, true);
+        if (is_array($decodedContent)) {
+            foreach ($decodedContent as $key => $value) {
+                if (array_key_exists($key, $validation['attributes'])) {
+                    $validation['attributes'][$key] = $value;
+                }
+            }
+        }
+
+        //save the changes in validation attributes array
+        $validationContent = "<?php\n\nreturn " . var_export($validation, true) . ";\n";
+        file_put_contents($validationFilePath, $validationContent);
+    }
+
+    public function copyFolder($sourcePath, $destinationPath)
+    {
+        if (!File::exists($sourcePath)) {
+            return false;
+        }
+
+        if (File::exists($destinationPath)) {
+            File::deleteDirectory($destinationPath);
+        }
+        return File::copyDirectory($sourcePath, $destinationPath);
+    }
 }

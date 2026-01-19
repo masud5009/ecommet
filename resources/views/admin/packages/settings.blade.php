@@ -33,16 +33,19 @@
         </div>
         <div class="card-body pt-5 pb-5">
           <div class="row">
-            <div class="col-lg-6 offset-lg-3">
-              <form id="settingsForm" action="{{ route('admin.package.settings.update') }}" method="POST">
+            <div class="col-lg-6 m-auto">
+              <form id="settingsForm" action="{{ route('admin.package.settings') }}" method="POST">
                 @csrf
                 <div id="recurringBilling">
                   <div class="form-group">
-                    <label>{{ __('Remind Before (Days)') }} **</label>
+                    <label>{{ __('Remind Before (Days)') }} <span class="text-danger">**</span></label>
                     <input type="number" name="expiration_reminder" class="form-control"
                       value="{{ $abe->expiration_reminder }}">
+                    @error('expiration_reminder')
+                      <p class="text-danger">{{ $message }}</p>
+                    @enderror
                     <p class="text-warning mb-0">
-                      {{ __('Specify how many days before you want to remind your customers about subscription expiration.(via mail)') }}
+                      {{ __('Specify how many days before you want to remind your customers about subscription expiration. (via mail)') }}
                     </p>
                   </div>
                 </div>

@@ -3,8 +3,8 @@
 namespace App\Jobs;
 
 use App\Http\Helpers\MegaMailer;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -14,19 +14,22 @@ class SubscriptionReminderMail implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $vendor;
+    public $user;
     public $bs;
-    public $expire_date;
+    public $be;
+    public $exDate;
+
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($vendor, $bs, $expire_date)
+    public function __construct($user, $bs, $be, $exDate)
     {
-        $this->vendor = $vendor;
+        $this->user = $user;
         $this->bs = $bs;
-        $this->expire_date = $expire_date;
+        $this->be = $be;
+        $this->exDate = $exDate;
     }
 
     /**
@@ -36,18 +39,18 @@ class SubscriptionReminderMail implements ShouldQueue
      */
     public function handle()
     {
+
         $mailer = new MegaMailer();
-
         $data = [
-            'toMail' => $this->vendor->email,
-            'toName' => $this->vendor->username,
-            'username' => $this->vendor->username,
-            'last_day_of_membership' => $this->expire_date,
-            'login_link' => '<a href="' . route('vendor.login') . '">Login</a>',
+            'toMail' => $this->user->email,
+            'toName' => $this->user->first_name,
+            'username' => $this->user->username,
+            'last_day_of_membership' => Carbon::parse($this->exDate)->toFormattedDateString(),
+            'login_link' => "<a href='" . route('user.login') . "'>" . route('user.login') . "</a>",
             'website_title' => $this->bs->website_title,
-            'templateType' => 'membership_expiry_reminder'
+            'templateType' => 'membership_expiry_reminder',
+            'type' => 'membershipExpiryReminder'
         ];
-
         $mailer->mailFromAdmin($data);
     }
 }

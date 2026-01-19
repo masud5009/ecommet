@@ -5,13 +5,7 @@ declare(strict_types=1);
 namespace SpomkyLabs\Pki\ASN1\Type\Primitive;
 
 use Brick\Math\BigInteger;
-use function chr;
-use function count;
-use function in_array;
-use const INF;
 use LogicException;
-use function mb_strlen;
-use function ord;
 use RangeException;
 use SpomkyLabs\Pki\ASN1\Component\Identifier;
 use SpomkyLabs\Pki\ASN1\Component\Length;
@@ -23,6 +17,13 @@ use SpomkyLabs\Pki\ASN1\Type\UniversalClass;
 use SpomkyLabs\Pki\ASN1\Util\BigInt;
 use Stringable;
 use UnexpectedValueException;
+use function chr;
+use function count;
+use function in_array;
+use function mb_strlen;
+use function ord;
+use function sprintf;
+use const INF;
 
 /**
  * Implements *REAL* type.
@@ -38,9 +39,9 @@ final class Real extends Element implements Stringable
      * @var string
      */
     final public const NR1_REGEX = '/^\s*' .
-    '(?<s>[+\-])?' .    // sign
-    '(?<i>\d+)' .       // integer
-    '$/';
+        '(?<s>[+\-])?' .    // sign
+        '(?<i>\d+)' .       // integer
+        '$/';
 
     /**
      * Regex pattern to parse NR2 form number.
@@ -48,9 +49,9 @@ final class Real extends Element implements Stringable
      * @var string
      */
     final public const NR2_REGEX = '/^\s*' .
-    '(?<s>[+\-])?' .                            // sign
-    '(?<d>(?:\d+[\.,]\d*)|(?:\d*[\.,]\d+))' .   // decimal number
-    '$/';
+        '(?<s>[+\-])?' .                            // sign
+        '(?<d>(?:\d+[\.,]\d*)|(?:\d*[\.,]\d+))' .   // decimal number
+        '$/';
 
     /**
      * Regex pattern to parse NR3 form number.
@@ -58,11 +59,11 @@ final class Real extends Element implements Stringable
      * @var string
      */
     final public const NR3_REGEX = '/^\s*' .
-    '(?<ms>[+\-])?' .                           // mantissa sign
-    '(?<m>(?:\d+[\.,]\d*)|(?:\d*[\.,]\d+))' .   // mantissa
-    '[Ee](?<es>[+\-])?' .                       // exponent sign
-    '(?<e>\d+)' .                               // exponent
-    '$/';
+        '(?<ms>[+\-])?' .                           // mantissa sign
+        '(?<m>(?:\d+[\.,]\d*)|(?:\d*[\.,]\d+))' .   // mantissa
+        '[Ee](?<es>[+\-])?' .                       // exponent sign
+        '(?<e>\d+)' .                               // exponent
+        '$/';
 
     /**
      * Regex pattern to parse PHP exponent number format.
@@ -72,14 +73,14 @@ final class Real extends Element implements Stringable
      * @var string
      */
     final public const PHP_EXPONENT_DNUM = '/^' .
-    '(?<ms>[+\-])?' .               // sign
-    '(?<m>' .
-    '\d+' .                     // LNUM
-    '|' .
-    '(?:\d*\.\d+|\d+\.\d*)' .   // DNUM
-    ')[eE]' .
-    '(?<es>[+\-])?(?<e>\d+)' .      // exponent
-    '$/';
+        '(?<ms>[+\-])?' .               // sign
+        '(?<m>' .
+        '\d+' .                     // LNUM
+        '|' .
+        '(?:\d*\.\d+|\d+\.\d*)' .   // DNUM
+        ')[eE]' .
+        '(?<es>[+\-])?(?<e>\d+)' .      // exponent
+        '$/';
 
     /**
      * Exponent when value is positive or negative infinite.

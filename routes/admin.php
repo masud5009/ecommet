@@ -1,987 +1,449 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+$domain = env('WEBSITE_HOST');
 
-/*
-|--------------------------------------------------------------------------
-| Admin Panel Routes
-|--------------------------------------------------------------------------
-*/
+if (!app()->runningInConsole()) {
+    if (substr($_SERVER['HTTP_HOST'], 0, 4) === 'www.') {
+        $domain = 'www.' . env('WEBSITE_HOST');
+    }
+}
 
+Route::domain($domain)->group(function () {
+    Route::group(['prefix' => 'admin', 'middleware' => ['auth:admin', 'checkstatus', 'adminLanguage', 'Demo']], function () {
+        // RTL check
+        Route::get('/rtlcheck/{langid}', 'Admin\LanguageController@rtlcheck')->name('admin.rtlcheck');
 
-// language change in admin dashboard
-Route::get('/change-language/{lang}', 'Admin\AdminController@languageChange')->name('admin.language.change');
-Route::prefix('/admin')->middleware('auth:admin', 'adminlang')->group(function () {
+        // admin redirect to dashboard route
+        Route::get('/change-theme', 'Admin\DashboardController@changeTheme')->name('admin.theme.change');
 
-  // admin redirect to dashboard route
-  Route::get('/dashboard', 'Admin\AdminController@redirectToDashboard')->name('admin.dashboard');
-  Route::get('/membership-request', 'Admin\AdminController@membershipRequest')->name('admin.membership-request');
-  // change admin-panel theme (dark/light) route
-  Route::get('/change-theme', 'Admin\AdminController@changeTheme')->name('admin.change_theme');
-
-  // admin profile settings route start
-  Route::get('/edit-profile', 'Admin\AdminController@editProfile')->name('admin.edit_profile');
-
-  Route::post('/update-profile', 'Admin\AdminController@updateProfile')->name('admin.update_profile');
-
-  Route::get('/change-password', 'Admin\AdminController@changePassword')->name('admin.change_password');
-
-  Route::post('/update-password', 'Admin\AdminController@updatePassword')->name('admin.update_password');
-  // admin profile settings route end
-
-  // admin logout attempt route
-  Route::get('/logout', 'Admin\AdminController@logout')->name('admin.logout');
-
-  Route::get('/monthly-earning', 'Admin\AdminController@monthly_earning')->name('admin.monthly_earning');
-
-  Route::get('/monthly-profit', 'Admin\AdminController@monthly_profit')->name('admin.monthly_profit');
+        // Admin logout Route
+        Route::get('/logout', 'Admin\LoginController@logout')->name('admin.logout');
+        // Admin Dashboard Routes
+        Route::get('/dashboard', 'Admin\DashboardController@dashboard')->name('admin.dashboard');
 
 
-  // menu-builder route
-  Route::prefix('/menu-builder')->middleware('permission:Menu Builder')->group(function () {
-    Route::get('', 'Admin\MenuBuilderController@index')->name('admin.menu_builder');
-
-    Route::post('/update-menus', 'Admin\MenuBuilderController@update')->name('admin.menu_builder.update_menus');
-  });
-
-  // admin management route
-  Route::prefix('/admin-management')->middleware('permission:Admin Management')->group(function () {
-    // role-permission route
-    Route::get('/role-permissions', 'Admin\Administrator\RolePermissionController@index')->name('admin.admin_management.role_permissions');
-
-    Route::post('/store-role', 'Admin\Administrator\RolePermissionController@store')->name('admin.admin_management.store_role');
-
-    Route::get(
-      '/role/{id}/permissions',
-      'Admin\Administrator\RolePermissionController@permissions'
-    )->name('admin.admin_management.role.permissions');
-
-    Route::post('/role/{id}/update-permissions', 'Admin\Administrator\RolePermissionController@updatePermissions')->name('admin.admin_management.role.update_permissions');
-
-    Route::post('/update-role', 'Admin\Administrator\RolePermissionController@update')->name('admin.admin_management.update_role');
-
-    Route::post('/delete-role/{id}', 'Admin\Administrator\RolePermissionController@destroy')->name('admin.admin_management.delete_role');
-
-    // registered admin route
-    Route::get('/registered-admins', 'Admin\Administrator\SiteAdminController@index')->name('admin.admin_management.registered_admins');
-
-    Route::post('/store-admin', 'Admin\Administrator\SiteAdminController@store')->name('admin.admin_management.store_admin');
-
-    Route::post('/update-status/{id}', 'Admin\Administrator\SiteAdminController@updateStatus')->name('admin.admin_management.update_status');
-
-    Route::post('/update-admin', 'Admin\Administrator\SiteAdminController@update')->name('admin.admin_management.update_admin');
-
-    Route::post('/delete-admin/{id}', 'Admin\Administrator\SiteAdminController@destroy')->name('admin.admin_management.delete_admin');
-  });
-
-  //staff management Route
-  Route::prefix('staff-managment')->middleware('permission:Staff Managment')->group(function () {
-    Route::get('/', 'Admin\Staff\StaffController@index')->name('admin.staff_managment');
-    Route::get('create', 'Admin\Staff\StaffController@create')->name('admin.staff_managment.create');
-    Route::get('check/package', 'Admin\Staff\StaffController@checkPackge')->name('admin.staff_managment.check_package');
-    Route::post('store', 'Admin\Staff\StaffController@store')->name('admin.staff_managment.store');
-    Route::get('edit/{id}', 'Admin\Staff\StaffController@edit')->name('admin.staff_managment.edit');
-    Route::post('update/{id}', 'Admin\Staff\StaffController@update')->name('admin.staff_managment.update');
-    Route::post('delete/{id}', 'Admin\Staff\StaffController@destroy')->name('admin.staff_managment.delete');
-    Route::post('staff/bulkDestroy', 'Admin\Staff\StaffController@bulkDestroy')->name('admin.staff_managment.bulkDestroy');
-    Route::post('staff-status', 'Admin\Staff\StaffController@staffstatus')->name('admin.status.change');
-    Route::get('/secret-login/{id}', 'Admin\Staff\StaffController@secret_login')->name('admin.staff.secret-login');
-    Route::get('/permission/{id}', 'Admin\Staff\StaffController@permission')->name('admin.staff.permission');
-    Route::post('/permission-update/{id}', 'Admin\Staff\StaffController@permissionUpdate')->name('admin.staff.permission_update');
-    Route::get('/change-password/{id}', 'Admin\Staff\StaffController@changePassword')->name('admin.staff.change_password');
-    Route::post('/update-password/{id}', 'Admin\Staff\StaffController@updatePassword')->name('admin.staff.update_password');
+        // Admin Profile Routes
+        Route::get('/changePassword', 'Admin\ProfileController@changePass')->name('admin.changePass');
+        Route::post('/profile/updatePassword', 'Admin\ProfileController@updatePassword')->name('admin.updatePassword');
+        Route::get('/profile/edit', 'Admin\ProfileController@editProfile')->name('admin.editProfile');
+        Route::post('/profile/update', 'Admin\ProfileController@updateProfile')->name('admin.updateProfile');
 
 
-    //Staff Time slots route
-    Route::prefix('staff')->group(function () {
-      Route::get('/days/{staff_id}', 'Admin\Staff\StaffServiceHourController@day')->name('admin.service.day');
-      Route::get('/time-slots', 'Admin\Staff\StaffServiceHourController@index')->name('admin.time-slot.manage');
-      Route::post('/time-slots/store', 'Admin\Staff\StaffServiceHourController@store')->name('admin.service-hour.store');
-      Route::post('/time-slots/update', 'Admin\Staff\StaffServiceHourController@update')->name('admin.service-hour.update');
-      Route::post('/time-slots/destroy/{id}', 'Admin\Staff\StaffServiceHourController@destroy')->name('admin.service-houre.destroy');
-      Route::post('/time-slots/bulk-delete', 'Admin\Staff\StaffServiceHourController@bulkDestroy')->name('admin.service-hour.bulk_delete');
-      Route::post('change-weekend/{id}', 'Admin\Staff\StaffServiceHourController@weekendChange')->name('admin.staff.change.weekend');
+        Route::group(['middleware' => 'checkpermission:Settings'], function () {
+            // Admin Basic Information Routes
+            Route::get('/general-settings', 'Admin\BasicController@generalSetting')->name('admin.general-settings');
+            Route::post('/general-settings/post', 'Admin\BasicController@updateGeneralSetting')->name('admin.general-settings.update');
+            Route::get('/general-settings/remove-img/{language_id}', 'Admin\BasicController@removeImage')->name('admin.basic_settings.removeImage');
+
+
+            // Admin Email Settings Routes
+            Route::get('/mail-from-admin', 'Admin\EmailController@mailFromAdmin')->name('admin.mailFromAdmin');
+            Route::post('/mail-from-admin/update', 'Admin\EmailController@updateMailFromAdmin')->name('admin.mailfromadmin.update');
+            Route::get('/mail-to-admin', 'Admin\EmailController@mailToAdmin')->name('admin.mailToAdmin');
+            Route::post('/mail-to-admin/update', 'Admin\EmailController@updateMailToAdmin')->name('admin.mailtoadmin.update');
+            Route::get('/mail_templates', 'Admin\MailTemplateController@mailTemplates')->name('admin.mail_templates');
+            Route::get('/edit_mail_template/{id}', 'Admin\MailTemplateController@editMailTemplate')->name('admin.edit_mail_template');
+            Route::post('/update_mail_template/{id}', 'Admin\MailTemplateController@updateMailTemplate')->name('admin.update_mail_template');
+
+
+            // Admin Scripts Routes
+            Route::get('/plugins', 'Admin\BasicController@script')->name('admin.script');
+            Route::post('/plugin/update', 'Admin\BasicController@updatescript')->name('admin.script.update');
+
+
+            // Admin Social Routes
+            Route::get('/social', 'Admin\SocialController@index')->name('admin.social.index');
+            Route::post('/social/store', 'Admin\SocialController@store')->name('admin.social.store');
+            Route::get('/social/{id}/edit', 'Admin\SocialController@edit')->name('admin.social.edit');
+            Route::post('/social/update', 'Admin\SocialController@update')->name('admin.social.update');
+            Route::post('/social/delete', 'Admin\SocialController@delete')->name('admin.social.delete');
+
+
+            // Admin Maintanance Mode Routes
+            Route::get('/maintainance', 'Admin\BasicController@maintainance')->name('admin.maintainance');
+            Route::post('/maintainance/update', 'Admin\BasicController@updatemaintainance')->name('admin.maintainance.update');
+
+            // Admin Cookie Alert Routes
+            Route::get('/cookie-alert', 'Admin\BasicController@cookiealert')->name('admin.cookie.alert');
+            Route::post('/cookie-alert/{langid}/update', 'Admin\BasicController@updatecookie')->name('admin.cookie.update');
+        });
+
+
+
+        Route::group(['middleware' => 'checkpermission:Push Notification'], function () {
+            // Admin Push Notification Routes
+            Route::get('/pushnotification/settings', 'Admin\PushController@settings')->name('admin.pushnotification.settings');
+            Route::post('/pushnotification/update/settings', 'Admin\PushController@updateSettings')->name('admin.pushnotification.updateSettings');
+            Route::get('/pushnotification/send', 'Admin\PushController@send')->name('admin.pushnotification.send');
+            Route::post('/push', 'Admin\PushController@push')->name('admin.pushnotification.push');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Menu Builder'], function () {
+            Route::get('/menu-builder', 'Admin\MenuBuilderController@index')->name('admin.menu_builder.index');
+            Route::post('/menu-builder/update', 'Admin\MenuBuilderController@update')->name('admin.menu_builder.update');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Pages'], function () {
+
+            // Admin Hero Section Image & Text Routes
+            Route::get('/pages/home-page/image-&-texts', 'Admin\HerosectionController@imgtext')->name('admin.herosection.imgtext');
+            Route::post('/herosection/{langid}/update', 'Admin\HerosectionController@update')->name('admin.herosection.update');
+            Route::get('/pages/home-page/remove-img/{language_id}', 'Admin\HerosectionController@removeImg')->name('admin.herosection.removeImg');
+
+            // Admin Feature Routes
+            Route::get('/features', 'Admin\FeatureController@index')->name('admin.feature.index');
+            Route::post('/feature/store', 'Admin\FeatureController@store')->name('admin.feature.store');
+            Route::get('/feature/{id}/edit', 'Admin\FeatureController@edit')->name('admin.feature.edit');
+            Route::post('/feature/update', 'Admin\FeatureController@update')->name('admin.feature.update');
+            Route::post('/feature/delete', 'Admin\FeatureController@delete')->name('admin.feature.delete');
+
+
+            // Admin Work Process Routes
+            Route::get('/process', 'Admin\ProcessController@index')->name('admin.process.index');
+            Route::post('/process/store', 'Admin\ProcessController@store')->name('admin.process.store');
+            Route::get('/process/{id}/edit', 'Admin\ProcessController@edit')->name('admin.process.edit');
+            Route::post('/process/update', 'Admin\ProcessController@update')->name('admin.process.update');
+            Route::post('/process/delete', 'Admin\ProcessController@delete')->name('admin.process.delete');
+
+            // Admin Testimonial Routes
+            Route::get('/testimonials', 'Admin\TestimonialController@index')->name('admin.testimonial.index');
+            Route::get('/testimonial/create', 'Admin\TestimonialController@create')->name('admin.testimonial.create');
+            Route::post('/testimonial/store', 'Admin\TestimonialController@store')->name('admin.testimonial.store');
+            Route::post('/testimonial/sideImageStore', 'Admin\TestimonialController@sideImageStore')->name('admin.testimonial.sideImageStore');
+            Route::get('/testimonial/{id}/edit', 'Admin\TestimonialController@edit')->name('admin.testimonial.edit');
+            Route::post('/testimonial/update', 'Admin\TestimonialController@update')->name('admin.testimonial.update');
+            Route::post('/testimonial/delete', 'Admin\TestimonialController@delete')->name('admin.testimonial.delete');
+            Route::post('/testimonialtext/{langid}/update', 'Admin\TestimonialController@textupdate')->name('admin.testimonialtext.update');
+
+            Route::prefix('additional-sections')->group(function () {
+                Route::get('sections', 'Admin\AdditionalSectionController@index')->name('admin.additional_sections');
+                Route::get('add-section', 'Admin\AdditionalSectionController@create')->name('admin.additional_section.create');
+                Route::post('store-section', 'Admin\AdditionalSectionController@store')->name('admin.additional_section.store');
+                Route::get('edit-section/{id}', 'Admin\AdditionalSectionController@edit')->name('admin.additional_section.edit');
+                Route::post('update/{id}', 'Admin\AdditionalSectionController@update')->name('admin.additional_section.update');
+                Route::post('delete/{id}', 'Admin\AdditionalSectionController@delete')->name('admin.additional_section.delete');
+                Route::post('bulkdelete', 'Admin\AdditionalSectionController@bulkdelete')->name('admin.additional_section.bulkdelete');
+            });
+
+            // Admin Section Customization Routes
+            Route::get('/sections', 'Admin\BasicController@sections')->name('admin.sections.index');
+            Route::post('/sections/update', 'Admin\BasicController@updatesections')->name('admin.sections.update');
+
+            // counter section
+            Route::get('/counter-section', 'Admin\CounterInformationController@index')->name('admin.home_page.counter-section');
+            Route::get('/counter-section/remove-img/{language_id}', 'Admin\CounterInformationController@removeImg')->name('admin.home_page.counter-section-removeImg');
+
+            Route::post('/update-counter-section-info', 'Admin\CounterInformationController@updateInfo')->name('admin.home_page.update_counter_section_info');
+
+            Route::prefix('about-us')->group(function () {
+                Route::get('/update-section-status', 'Admin\BasicController@aboutSectionInfo')->name('admin.abouts.section.hide_show');
+                Route::post('/update-section-status/update', 'Admin\BasicController@aboutSectionInfoUpdate')->name('admin.abouts.section.hide_show.update');
+
+                Route::prefix('additional-sections')->group(function () {
+                    Route::get('sections', 'Admin\AboutAdditionSectionController@index')->name('admin.about_us.additional_sections');
+                    Route::get('add-section', 'Admin\AboutAdditionSectionController@create')->name('admin.about_us.additional_section.create');
+                    Route::post('store-section', 'Admin\AboutAdditionSectionController@store')->name('admin.about_us.additional_section.store');
+                    Route::get('edit-section/{id}', 'Admin\AboutAdditionSectionController@edit')->name('admin.about_us.additional_section.edit');
+                    Route::post('update/{id}', 'Admin\AboutAdditionSectionController@update')->name('admin.about_us.additional_section.update');
+                    Route::post('delete/{id}', 'Admin\AboutAdditionSectionController@delete')->name('admin.about_us.additional_section.delete');
+                    Route::post('bulkdelete', 'Admin\AboutAdditionSectionController@bulkdelete')->name('admin.about_us.additional_section.bulkdelete');
+                });
+            });
+
+            Route::prefix('/counter')->group(function () {
+                Route::post('/store', 'Admin\CounterInformationController@storeCounter')->name('admin.home_page.store_counter');
+
+                Route::post('/update', 'Admin\CounterInformationController@updateCounter')->name('admin.home_page.update_counter');
+
+                Route::post('{id}/delete', 'Admin\CounterInformationController@destroyCounter')->name('admin.home_page.delete_counter');
+
+                Route::post('/bulk-delete', 'Admin\CounterInformationController@bulkDestroyCounter')->name('admin.home_page.bulk_delete_counter');
+            });
+
+            // Admin Partner Routes
+            Route::get('/partners', 'Admin\PartnerController@index')->name('admin.partner.index');
+            Route::post('/partner/store', 'Admin\PartnerController@store')->name('admin.partner.store');
+            Route::post('/partner/upload', 'Admin\PartnerController@upload')->name('admin.partner.upload');
+            Route::get('/partner/{id}/edit', 'Admin\PartnerController@edit')->name('admin.partner.edit');
+            Route::post('/partner/update', 'Admin\PartnerController@update')->name('admin.partner.update');
+            Route::post('/partner/{id}/uploadUpdate', 'Admin\PartnerController@uploadUpdate')->name('admin.partner.uploadUpdate');
+            Route::post('/partner/delete', 'Admin\PartnerController@delete')->name('admin.partner.delete');
+
+            // Admin Breadcrumb Routes
+            Route::get('/breadcrumb', 'Admin\BasicController@breadcrumb')->name('admin.breadcrumb');
+            Route::post('/breadcrumb/update', 'Admin\BasicController@updatebreadcrumb')->name('admin.breadcrumb.update');
+
+            Route::get('headings', 'Admin\BasicController@heading')->name('admin.breadcrumb.heading');
+            Route::post('headings/update', 'Admin\BasicController@update_heading')->name('admin.breadcrumb.heading_update');
+
+            // basic settings seo route
+            Route::get('/seo', 'Admin\BasicController@seo')->name('admin.seo');
+            Route::post('/seo/update', 'Admin\BasicController@updateSEO')->name('admin.seo.update');
+        });
+
+
+        // additional page routes
+        Route::group(['middleware' => 'checkpermission:Pages'], function () {
+            Route::prefix('pages/additional-pages')->group(function () {
+                Route::get('/all-pages', 'Admin\PageController@index')->name('admin.page.index');
+                Route::get('/add-page', 'Admin\PageController@create')->name('admin.page.create');
+                Route::post('/page/store', 'Admin\PageController@store')->name('admin.page.store');
+                Route::get('/page/{menuID}/edit', 'Admin\PageController@edit')->name('admin.page.edit');
+                Route::post('/page/update', 'Admin\PageController@update')->name('admin.page.update');
+                Route::post('/page/delete', 'Admin\PageController@delete')->name('admin.page.delete');
+                Route::post('/page/bulk-delete', 'Admin\PageController@bulkDelete')->name('admin.page.bulk.delete');
+            });
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Pages'], function () {
+            // Admin Footer Logo Text Routes
+            Route::get('/footers', 'Admin\FooterController@index')->name('admin.footer.index');
+            Route::post('/footer/{langid}/update', 'Admin\FooterController@update')->name('admin.footer.update');
+            Route::get('/footer/remove/image/{language_id}', 'Admin\FooterController@removeImage')->name('admin.footer.rmvimg');
+
+
+            // Admin Ulink Routes
+            Route::get('/ulinks', 'Admin\UlinkController@index')->name('admin.ulink.index');
+            Route::get('/ulink/create', 'Admin\UlinkController@create')->name('admin.ulink.create');
+            Route::post('/ulink/store', 'Admin\UlinkController@store')->name('admin.ulink.store');
+            Route::post('/ulink/update', 'Admin\UlinkController@update')->name('admin.ulink.update');
+            Route::post('/ulink/delete', 'Admin\UlinkController@delete')->name('admin.ulink.delete');
+        });
+
+
+        // Announcement Popup Routes
+        Route::group(['middleware' => 'checkpermission:Announcement Popup'], function () {
+            Route::get('popups', 'Admin\PopupController@index')->name('admin.popup.index');
+            Route::get('popup/types', 'Admin\PopupController@types')->name('admin.popup.types');
+            Route::get('popup/{id}/edit', 'Admin\PopupController@edit')->name('admin.popup.edit');
+            Route::get('popup/create', 'Admin\PopupController@create')->name('admin.popup.create');
+            Route::post('popup/store', 'Admin\PopupController@store')->name('admin.popup.store');;
+            Route::post('popup/delete', 'Admin\PopupController@delete')->name('admin.popup.delete');
+            Route::post('popup/bulk-delete', 'Admin\PopupController@bulkDelete')->name('admin.popup.bulk.delete');
+            Route::post('popup/status', 'Admin\PopupController@status')->name('admin.popup.status');
+            Route::post('popup/update', 'Admin\PopupController@update')->name('admin.popup.update');;
+        });
+
+
+        //Users Management
+        Route::prefix('users-management')->middleware('checkpermission:Users Management')->group(function () {
+            // Register User start
+            Route::prefix('register-users')->group(function () {
+                Route::get('/', 'Admin\RegisterUserController@index')->name('admin.register.user');
+                Route::get('/details/{id}', 'Admin\RegisterUserController@view')->name('register.user.view');
+                Route::get('change-passwords/{id}', 'Admin\RegisterUserController@changePass')->name('register.user.changePass');
+                Route::get('categories', 'Admin\RegisterUserController@category')->name('register.user.category');
+                Route::post('categories/store', 'Admin\RegisterUserController@categoryStore')->name('register.user.category_store');
+                Route::get('categories/edit/{id}', 'Admin\RegisterUserController@categoryEdit')->name('register.user.category_edit');
+                Route::post('categories/update', 'Admin\RegisterUserController@categoryUpdate')->name('register.user.category_update');
+                Route::post('categories/delete', 'Admin\RegisterUserController@categoryDelete')->name('register.user.category_delete');
+            });
+            Route::post('register/user/store', 'Admin\RegisterUserController@store')->name('register.user.store');
+            Route::post('register/users/ban', 'Admin\RegisterUserController@userban')->name('register.user.ban');
+            Route::post('register/users/featured', 'Admin\RegisterUserController@userFeatured')->name('register.user.featured');
+            Route::post('register/users/template', 'Admin\RegisterUserController@userTemplate')->name('register.user.template');
+            Route::post('register/users/template/update', 'Admin\RegisterUserController@userUpdateTemplate')->name('register.user.updateTemplate');
+            Route::post('register/users/email', 'Admin\RegisterUserController@emailStatus')->name('register.user.email');
+
+            Route::post('/user/current-package/remove', 'Admin\RegisterUserController@removeCurrPackage')->name('user.currPackage.remove');
+            Route::post('/user/current-package/change', 'Admin\RegisterUserController@changeCurrPackage')->name('user.currPackage.change');
+            Route::post('/user/current-package/add', 'Admin\RegisterUserController@addCurrPackage')->name('user.currPackage.add');
+            Route::post('/user/next-package/remove', 'Admin\RegisterUserController@removeNextPackage')->name('user.nextPackage.remove');
+            Route::post('/user/next-package/change', 'Admin\RegisterUserController@changeNextPackage')->name('user.nextPackage.change');
+            Route::post('/user/next-package/add', 'Admin\RegisterUserController@addNextPackage')->name('user.nextPackage.add');
+            Route::post('register/user/delete', 'Admin\RegisterUserController@delete')->name('register.user.delete');
+            Route::post('register/user/bulk-delete', 'Admin\RegisterUserController@bulkDelete')->name('register.user.bulk.delete');
+            Route::post('register/user/updatePassword', 'Admin\RegisterUserController@updatePassword')->name('register.user.updatePassword');
+            Route::get('register/users/secret-login/{id}', 'Admin\RegisterUserController@secret_login')->name('register.user.secret_login');
+
+
+
+            // Admin Subscriber Routes
+            Route::get('/subscribers', 'Admin\SubscriberController@index')->name('admin.subscriber.index');
+            Route::get('/mailsubscriber', 'Admin\SubscriberController@mailsubscriber')->name('admin.mailsubscriber');
+            Route::post('/subscribers/sendmail', 'Admin\SubscriberController@subscsendmail')->name('admin.subscribers.sendmail');
+            Route::post('/subscriber/delete', 'Admin\SubscriberController@delete')->name('admin.subscriber.delete');
+            Route::post('/subscriber/bulk-delete', 'Admin\SubscriberController@bulkDelete')->name('admin.subscriber.bulk.delete');
+        });
+
+        // Package Management
+        Route::prefix('package-management')->middleware('checkpermission:Package Management')->group(function () {
+            // Package Settings routes
+            Route::get('/settings', 'Admin\PackageController@settings')->name('admin.package.settings');
+            Route::post('/settings', 'Admin\PackageController@updateSettings')->name('admin.package.settings');
+            // Package Settings routes
+            Route::get('/package-features', 'Admin\PackageController@features')->name('admin.package.features');
+            Route::post('/package/features/update', 'Admin\PackageController@updateFeatures')->name('admin.package.features_update');
+            // Package routes
+            Route::get('packages', 'Admin\PackageController@index')->name('admin.package.index');
+            Route::post('package/upload', 'Admin\PackageController@upload')->name('admin.package.upload');
+            Route::post('package/store', 'Admin\PackageController@store')->name('admin.package.store');
+            Route::get('package/{id}/edit', 'Admin\PackageController@edit')->name('admin.package.edit');
+            Route::post('package/update', 'Admin\PackageController@update')->name('admin.package.update');
+            Route::post('package/{id}/uploadUpdate', 'Admin\PackageController@uploadUpdate')->name('admin.package.uploadUpdate');
+            Route::post('package/delete', 'Admin\PackageController@delete')->name('admin.package.delete');
+            Route::post('package/bulk-delete', 'Admin\PackageController@bulkDelete')->name('admin.package.bulk.delete');
+        });
+
+        // Payment Log
+        Route::group(['middleware' => 'checkpermission:Payment Logs'], function () {
+            Route::get('/payment-log', 'Admin\PaymentLogController@index')->name('admin.payment-log.index');
+            Route::post('/payment-log/update', 'Admin\PaymentLogController@update')->name('admin.payment-log.update');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Pages'], function () {
+            // Admin FAQ Routes
+            Route::get('/faqs', 'Admin\FaqController@index')->name('admin.faq.index');
+            Route::get('/faq/create', 'Admin\FaqController@create')->name('admin.faq.create');
+            Route::post('/faq/store', 'Admin\FaqController@store')->name('admin.faq.store');
+            Route::post('/faq/update', 'Admin\FaqController@update')->name('admin.faq.update');
+            Route::post('/faq/delete', 'Admin\FaqController@delete')->name('admin.faq.delete');
+            Route::post('/faq/bulk-delete', 'Admin\FaqController@bulkDelete')->name('admin.faq.bulk.delete');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Pages'], function () {
+            // Admin Blog Category Routes
+            Route::get('/bcategorys', 'Admin\BcategoryController@index')->name('admin.bcategory.index');
+            Route::post('/bcategory/store', 'Admin\BcategoryController@store')->name('admin.bcategory.store');
+            Route::get('/bcategory/edit/{id}', 'Admin\BcategoryController@edit')->name('admin.bcategory.edit');
+            Route::post('/bcategory/update', 'Admin\BcategoryController@update')->name('admin.bcategory.update');
+            Route::post('/bcategory/delete', 'Admin\BcategoryController@delete')->name('admin.bcategory.delete');
+            Route::post('/bcategory/bulk-delete', 'Admin\BcategoryController@bulkDelete')->name('admin.bcategory.bulk.delete');
+
+
+            // Admin Blog Routes
+            Route::get('/blog', 'Admin\BlogController@index')->name('admin.blog.index');
+            Route::post('/blog/upload', 'Admin\BlogController@upload')->name('admin.blog.upload');
+            Route::post('/blog/store', 'Admin\BlogController@store')->name('admin.blog.store');
+            Route::get('/blog/{id}/edit', 'Admin\BlogController@edit')->name('admin.blog.edit');
+            Route::post('/blog/update', 'Admin\BlogController@update')->name('admin.blog.update');
+            Route::post('/blog/{id}/uploadUpdate', 'Admin\BlogController@uploadUpdate')->name('admin.blog.uploadUpdate');
+            Route::post('/blog/delete', 'Admin\BlogController@delete')->name('admin.blog.delete');
+            Route::post('/blog/bulk-delete', 'Admin\BlogController@bulkDelete')->name('admin.blog.bulk.delete');
+            Route::get('/blog/{langid}/getcats', 'Admin\BlogController@getcats')->name('admin.blog.getcats');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Sitemaps'], function () {
+            Route::get('/sitemap', 'Admin\SitemapController@index')->name('admin.sitemap.index');
+            Route::post('/sitemap/store', 'Admin\SitemapController@store')->name('admin.sitemap.store');
+            Route::get('/sitemap/{id}/update', 'Admin\SitemapController@update')->name('admin.sitemap.update');
+            Route::post('/sitemap/{id}/delete', 'Admin\SitemapController@delete')->name('admin.sitemap.delete');
+            Route::post('/sitemap/download', 'Admin\SitemapController@download')->name('admin.sitemap.download');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Pages'], function () {
+            // Admin Contact Routes
+            Route::get('/contact', 'Admin\ContactController@index')->name('admin.contact.index');
+            Route::post('/contact/{langid}/post', 'Admin\ContactController@update')->name('admin.contact.update');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Settings'], function () {
+            // Admin Online Gateways Routes
+            Route::get('/gateways', 'Admin\GatewayController@index')->name('admin.gateway.index');
+            Route::post('/stripe/update', 'Admin\GatewayController@stripeUpdate')->name('admin.stripe.update');
+            Route::post('/anet/update', 'Admin\GatewayController@anetUpdate')->name('admin.anet.update');
+            Route::post('/paypal/update', 'Admin\GatewayController@paypalUpdate')->name('admin.paypal.update');
+            Route::post('/paystack/update', 'Admin\GatewayController@paystackUpdate')->name('admin.paystack.update');
+            Route::post('/paytm/update', 'Admin\GatewayController@paytmUpdate')->name('admin.paytm.update');
+            Route::post('/flutterwave/update', 'Admin\GatewayController@flutterwaveUpdate')->name('admin.flutterwave.update');
+            Route::post('/instamojo/update', 'Admin\GatewayController@instamojoUpdate')->name('admin.instamojo.update');
+            Route::post('/mollie/update', 'Admin\GatewayController@mollieUpdate')->name('admin.mollie.update');
+            Route::post('/razorpay/update', 'Admin\GatewayController@razorpayUpdate')->name('admin.razorpay.update');
+            Route::post('/mercadopago/update', 'Admin\GatewayController@mercadopagoUpdate')->name('admin.mercadopago.update');
+            Route::post('/yoco/update', 'Admin\GatewayController@yocoUpdate')->name('admin.yoco.update');
+            Route::post('/xendit/update', 'Admin\GatewayController@xenditUpdate')->name('admin.xendit.update');
+            Route::post('/perfect_money/update', 'Admin\GatewayController@perfect_moneyUpdate')->name('admin.perfect_money.update');
+            Route::post('/myfatoorah/update', 'Admin\GatewayController@myfatoorahUpdate')->name('admin.myfatoorah.update');
+            Route::post('/toyyibpay/update', 'Admin\GatewayController@toyyibpayUpdate')->name('admin.toyyibpay.update');
+            Route::post('/midtrans/update', 'Admin\GatewayController@midtransUpdate')->name('admin.midtrans.update');
+            Route::post('/iyzico/update', 'Admin\GatewayController@iyzicoUpdate')->name('admin.iyzico.update');
+            Route::post('/paytabs/update', 'Admin\GatewayController@paytabsUpdate')->name('admin.paytabs.update');
+            Route::post('/phonepe/update', 'Admin\GatewayController@phonepeUpdate')->name('admin.phonepe.update');
+
+            // Admin Offline Gateway Routes
+            Route::get('/offline/gateways', 'Admin\GatewayController@offline')->name('admin.gateway.offline');
+            Route::post('/offline/gateway/store', 'Admin\GatewayController@store')->name('admin.gateway.offline.store');
+            Route::post('/offline/gateway/update', 'Admin\GatewayController@update')->name('admin.gateway.offline.update');
+            Route::post('/offline/status', 'Admin\GatewayController@status')->name('admin.offline.status');
+            Route::post('/offline/gateway/delete', 'Admin\GatewayController@delete')->name('admin.offline.gateway.delete');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Admins Management'], function () {
+            // Admin Roles Routes
+            Route::get('/roles', 'Admin\RoleController@index')->name('admin.role.index');
+            Route::post('/role/store', 'Admin\RoleController@store')->name('admin.role.store');
+            Route::post('/role/update', 'Admin\RoleController@update')->name('admin.role.update');
+            Route::post('/role/delete', 'Admin\RoleController@delete')->name('admin.role.delete');
+            Route::get('role/{id}/permissions/manage', 'Admin\RoleController@managePermissions')->name('admin.role.permissions.manage');
+            Route::post('role/permissions/update', 'Admin\RoleController@updatePermissions')->name('admin.role.permissions.update');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Admins Management'], function () {
+            // Admin Users Routes
+            Route::get('/users', 'Admin\UserController@index')->name('admin.user.index');
+            Route::post('/user/upload', 'Admin\UserController@upload')->name('admin.user.upload');
+            Route::post('/user/store', 'Admin\UserController@store')->name('admin.user.store');
+            Route::get('/user/{id}/edit', 'Admin\UserController@edit')->name('admin.user.edit');
+            Route::post('/user/update', 'Admin\UserController@update')->name('admin.user.update');
+            Route::post('/user/{id}/uploadUpdate', 'Admin\UserController@uploadUpdate')->name('admin.user.uploadUpdate');
+            Route::post('/user/delete', 'Admin\UserController@delete')->name('admin.user.delete');
+        });
+
+
+        Route::group(['middleware' => 'checkpermission:Settings'], function () {
+            // Admin Language Routes
+            Route::get('/languages', 'Admin\LanguageController@index')->name('admin.language.index');
+            Route::get('/language/{id}/edit', 'Admin\LanguageController@edit')->name('admin.language.edit');
+            Route::get('/language/{id}/edit/keyword', 'Admin\LanguageController@editKeyword')->name('admin.language.editKeyword');
+            Route::post('/language/store', 'Admin\LanguageController@store')->name('admin.language.store');
+            Route::post('/language/{id}/uploadUpdate', 'Admin\LanguageController@uploadUpdate')->name('admin.language.uploadUpdate');
+            Route::post('/language/{id}/default', 'Admin\LanguageController@default')->name('admin.language.default');
+            Route::post('/language/{id}/dashboard-default', 'Admin\LanguageController@dashboardDefault')->name('admin.language.dashboardDefault');
+            Route::post('/language/{id}/delete', 'Admin\LanguageController@delete')->name('admin.language.delete');
+            Route::post('/language/update', 'Admin\LanguageController@update')->name('admin.language.update');
+            Route::post('/language/{id}/update/keyword', 'Admin\LanguageController@updateKeyword')->name('admin.language.updateKeyword');
+            Route::post('/language/add-keyword', 'Admin\LanguageController@addKeyword')->name('admin.language.add_keyword');
+            Route::post('/language/add-keyword/admin', 'Admin\LanguageController@addKeywordForAdmin')->name('admin.language.add_keyword.admin.dashboard');
+
+            Route::get('/language/{id}/edit/admin-dashboard/keyword', 'Admin\LanguageController@editAdminKeyword')->name('admin.language.admin_dashboard.editKeyword');
+            Route::post('/language/{id}/update/admin-dashboard-keyword', 'Admin\LanguageController@updateAdminKeyword')->name('admin.language.admin_dashboard.updateKeyword');
+
+            Route::get('/language/{id}/edit/user-dashboard/keyword', 'Admin\LanguageController@editUserKeyword')->name('admin.language.user_dashboard.editKeyword');
+            Route::post('/language/{id}/update/user-dashboard-keyword', 'Admin\LanguageController@updateUserDashboardKeyword')->name('admin.language.user_dashboard.updateKeyword');
+            Route::get('/language/{id}/edit/user-frontend/keyword', 'Admin\LanguageController@editUserFrontendKeyword')->name('admin.language.user_frontend.editKeyword');
+            Route::post('/language/{id}/update/user-frontend-keyword', 'Admin\LanguageController@updateCustomerKeyword')->name('admin.language.user_frontend.updateKeyword');
+        });
+
+
+        // Admin Cache Clear Routes
+        Route::get('/cache-clear', 'Admin\CacheController@clear')->name('admin.cache.clear');
+
+        // Custom Domains
+        Route::group(['middleware' => 'checkpermission:Custom Domains'], function () {
+            Route::get('/domains', 'Admin\CustomDomainController@index')->name('admin.custom-domain.index');
+            Route::get('/domain/texts', 'Admin\CustomDomainController@texts')->name('admin.custom-domain.texts');
+            Route::post('/domain/texts', 'Admin\CustomDomainController@updateTexts')->name('admin.custom-domain.texts');
+            Route::post('/domain/status', 'Admin\CustomDomainController@status')->name('admin.custom-domain.status');
+            Route::post('/domain/mail', 'Admin\CustomDomainController@mail')->name('admin.custom-domain.mail');
+            Route::post('/domain/delete', 'Admin\CustomDomainController@delete')->name('admin.custom-domain.delete');
+            Route::post('/domain/bulk-delete', 'Admin\CustomDomainController@bulkDelete')->name('admin.custom-domain.bulk.delete');
+        });
+
+        // Subdomains
+        Route::group(['middleware' => 'checkpermission:Subdomains'], function () {
+            Route::get('/subdomains', 'Admin\SubdomainController@index')->name('admin.subdomain.index');
+            Route::post('/subdomain/status', 'Admin\SubdomainController@status')->name('admin.subdomain.status');
+            Route::post('/subdomain/mail', 'Admin\SubdomainController@mail')->name('admin.subdomain.mail');
+        });
     });
-
-    //Staff Holiday Route
-    Route::prefix('staff-holiday')->group(function () {
-      Route::get('index/{id}', 'Admin\Staff\StaffHolidayController@index')->name('admin.staff.holiday.index');
-      Route::post('customize/status/change/{id}', 'Admin\Staff\StaffHolidayController@changeStaffSetting')->name('admin.customize.status.change');
-      Route::post('store', 'Admin\Staff\StaffHolidayController@store')->name('admin.staff.holiday.store');
-      Route::post('delete/{id}', 'Admin\Staff\StaffHolidayController@destroy')->name('admin.staff.holiday.destroy');
-      Route::post('bulk-delete', 'Admin\Staff\StaffHolidayController@blukDestroy')->name('admin.staff.holiday.bulkdestroy');
-    });
-
-    //staff service assign route
-    Route::prefix('staff-services-managment')->group(function () {
-      Route::get('/{id}', 'Admin\Staff\StaffServiceController@index')->name('admin.staff_service_assign');
-      Route::post('store', 'Admin\Staff\StaffServiceController@store')->name('admin.staff_service_assign.store');
-
-      Route::post('delete/{id}', 'Admin\Staff\StaffServiceController@destroy')->name('admin.staff_service_assign.delete');
-
-      Route::post('/bulk-delete-services', 'Admin\Staff\StaffServiceController@bulkDestroy')->name('admin.staff_service_assign.bulk_delete');
-    });
-  });
-
-  //admin or vendor schedule route
-  Route::prefix('schedule')->middleware('permission:Schedule')->group(function () {
-    //settings route
-    Route::get('/settings/time-format', 'Admin\BasicSettings\BasicController@timeFormate')->name('admin.time-formate');
-    Route::post('/settings/time-format/update', 'Admin\BasicSettings\BasicController@timeFormateUpdate')->name('admin.time-formate.update');
-
-    //days route
-    Route::prefix('days')->group(function () {
-      Route::get('/', 'Admin\Staff\StaffGlobalDayController@index')->name('admin.staff.global.day');
-      Route::post('weekend-change/{id}', 'Admin\Staff\StaffGlobalDayController@weekendChange')->name('admin.weekend.change');
-      Route::get('vendor/days', 'Admin\Staff\StaffGlobalDayController@vendorDays')->name('admin.vendor.days');
-
-      //time slots route
-      Route::prefix('time-slots')->group(function () {
-        Route::get('/', 'Admin\Staff\StaffGlobalHourController@serviceHour')->name('admin.global.time-slot.manage');
-        Route::post('/time-store', 'Admin\Staff\StaffGlobalHourController@store')->name('admin.global.time-slot.store');
-        Route::post('/time-update', 'Admin\Staff\StaffGlobalHourController@update')->name('admin.global.time-slot.update');
-        Route::post('/destroy/{id}', 'Admin\Staff\StaffGlobalHourController@destroy')->name('admin.global.time-slot.destroy');
-        Route::post('/bulk-delete', 'Admin\Staff\StaffGlobalHourController@bulkDestroy')->name('admin.global.time-slot.bulk_delete');
-      });
-    });
-
-    // holiday route
-    Route::prefix('holiday')->group(function () {
-      Route::get('/', 'Admin\Staff\GlobalHolidayController@index')->name('admin.global.holiday');
-      Route::post('/store', 'Admin\Staff\GlobalHolidayController@store')->name('admin.global.holiday.store');
-      Route::post('/delete/{id}', 'Admin\Staff\GlobalHolidayController@destroy')->name('admin.global.holiday.delete');
-      Route::post('/bulke-destory', 'Admin\Staff\GlobalHolidayController@blukDestroy')->name('admin.global.holiday.bluk-destroy');
-    });
-  });
-
-  //appointment managment route start
-  Route::prefix('appointments/')->middleware('permission:Appointments')->group(function () {
-
-    Route::get('/settings', 'Admin\Appointment\AppointmentController@setting')->name('admin.appointments.setting');
-    Route::post('update/settings', 'Admin\Appointment\AppointmentController@updatesetting')->name('admin.appointments.setting_update');
-    Route::get('/all-appointments', 'Admin\Appointment\AppointmentController@index')->name('admin.all_appointment');
-
-    Route::get('pending-appointments', 'Admin\Appointment\AppointmentController@pendingAppointment')->name('admin.pending_appointment');
-
-    Route::get('accepted-appointments', 'Admin\Appointment\AppointmentController@acceptedAppointment')->name('admin.accepted_appointment');
-
-    Route::get('rejected-appointments', 'Admin\Appointment\AppointmentController@rejectedAppointment')->name('admin.rejected_appointment');
-
-    Route::post('/update/payment-status/{id}', 'Admin\Appointment\AppointmentController@updatePaymentStatus')->name('admin.appointment.update_payment_status');
-
-    Route::post('/update/refund-status/{id}', 'Admin\Appointment\AppointmentController@updateRefundStatus')->name('admin.appointment.update_refund_status');
-
-    Route::post('/update/appointment-status/{id}', 'Admin\Appointment\AppointmentController@updateAppointmentStatus')->name('admin.appointment.update_appointment_status');
-
-    Route::post('/staff/assign', 'Admin\Appointment\AppointmentController@staffAssign')->name('admin.appointment.staff_assign');
-
-    Route::get('/details/{id}', 'Admin\Appointment\AppointmentController@show')->name('admin.appointment.details');
-
-    Route::post('/booking-info/delete/{id}', 'Admin\Appointment\AppointmentController@destroy')->name('admin.appointment.delete');
-
-    Route::post('/bulk-destory', 'Admin\Appointment\AppointmentController@bulkDestroy')->name('admin.appointment.bulk-destory');
-  });
-  //withdraw managment start
-  Route::prefix('withdraws')->middleware('permission:Withdraws')->group(function () {
-    Route::get('payment-method', 'Admin\Withdraw\WithdrawController@index')->name('admin.withdrawal.index');
-    Route::post('payment-method/store', 'Admin\Withdraw\WithdrawController@storePayment')->name('admin.withdrawal.store.payment');
-    Route::post('payment-method/update', 'Admin\Withdraw\WithdrawController@updatePayment')->name('admin.withdrawal.update.payment');
-    Route::post('payment-method/delete/{id}', 'Admin\Withdraw\WithdrawController@deletePayment')->name('admin.withdrawal.delete.payment');
-
-    //payment input route
-    Route::get('payment-method/input', 'Admin\Withdraw\WithdrawPaymentMethodInputController@index')->name('admin.withdraw_payment_method.mange_input');
-    Route::post('/payment-method/input-store', 'Admin\Withdraw\WithdrawPaymentMethodInputController@store')->name('admin.withdraw_payment_method.store_input');
-    Route::get('/payment-method/input-edit/{id}', 'Admin\Withdraw\WithdrawPaymentMethodInputController@edit')->name('admin.withdraw_payment_method.edit_input');
-    Route::post('/payment-method/input-update', 'Admin\Withdraw\WithdrawPaymentMethodInputController@update')->name('admin.withdraw_payment_method.update_input');
-    Route::post('/payment-method/order-update', 'Admin\Withdraw\WithdrawPaymentMethodInputController@order_update')->name('admin.withdraw_payment_method.order_update');
-    Route::get('/payment-method/input-option/{id}', 'Admin\Withdraw\WithdrawPaymentMethodInputController@get_options')->name('admin.withdraw_payment_method.options');
-    Route::post('/payment-method/input-delete', 'Admin\Withdraw\WithdrawPaymentMethodInputController@delete')->name('admin.withdraw_payment_method.options_delete');
-
-
-
-    Route::get('/withdraw-request', 'Admin\Withdraw\WithdrawRequestController@index')->name('admin.withdraw.withdraw_request');
-    Route::post('/withdraw-request/delete', 'Admin\Withdraw\WithdrawRequestController@delete')->name('admin.witdraw.delete_withdraw');
-    Route::get('/withdraw-request/approve/{id}', 'Admin\Withdraw\WithdrawRequestController@approve')->name('admin.witdraw.approve_withdraw');
-
-    Route::get('/withdraw-request/decline/{id}', 'Admin\Withdraw\WithdrawRequestController@decline')->name('admin.witdraw.decline_withdraw');
-  });
-
-  //transactions
-  Route::get('transactions', 'Admin\Transaction\TransactionController@index')->name('admin.transaction')->middleware('permission:Transactions');
-
-
-  //service managment start
-  Route::prefix('service-management')->middleware('permission:Service Management')->group(function () {
-    //categories
-    Route::prefix('settings')->group(function () {
-      Route::get('/', 'Admin\AdminServiceController@setting')->name('admin.service_managment.setting');
-      Route::post('/update', 'Admin\AdminServiceController@updateSettings')->name('admin.service_managment.setting_update');
-    });
-    Route::prefix('categories')->group(function () {
-      Route::get('/', 'Admin\ServiceCategoryController@index')->name('admin.service_managment.category');
-      Route::post('store', 'Admin\ServiceCategoryController@store')->name('admin.service_managment.category.store');
-      Route::post('update', 'Admin\ServiceCategoryController@update')->name('admin.service_managment.category.update');
-      Route::post('delete/{id}', 'Admin\ServiceCategoryController@destroy')->name('admin.service_managment.category.destory');
-      Route::post('/bulk-delete-services_categories', 'Admin\ServiceCategoryController@bulkDestroy')->name('admin.service_managment.category.bulk_delete');
-    });
-
-    //subcategories
-    Route::prefix('subcategories')->group(function () {
-      Route::get('/', 'Admin\ServiceSubcategoryController@index')->name('admin.service_managment.subcategory');
-      Route::get('/language/{langId}/categories', 'Admin\ServiceSubcategoryController@serviceCategory')->name('admin.service_managment.search_category');
-      Route::post('store', 'Admin\ServiceSubcategoryController@store')->name('admin.service_managment.subcategory.store');
-      Route::post('update', 'Admin\ServiceSubcategoryController@update')->name('admin.service_managment.subcategory.update');
-      Route::post('delete/{id}', 'Admin\ServiceSubcategoryController@destroy')->name('admin.service_managment.subcategory.destory');
-      Route::post('/bulk-delete-services_categories', 'Admin\ServiceSubcategoryController@bulkDestroy')->name('admin.service_managment.subcategory.bulk_delete');
-    });
-
-    //services
-    Route::get('/', 'Admin\AdminServiceController@index')->name('admin.service_managment');
-    Route::get('select/vendor', 'Admin\AdminServiceController@vendorSelect')->name('admin.service_managment.vendor_select');
-    Route::get('create', 'Admin\AdminServiceController@create')->name('admin.service_managment.create');
-    Route::get('get-subcategory/{category_id}', 'Admin\AdminServiceController@getSucategory')->name('admin.service_managment.get_subcategory');
-
-    //service slider image
-    Route::post('/img-store', 'Admin\AdminServiceController@imagesstore')->name('admin.service.imagesstore');
-    Route::post('/img-remove', 'Admin\AdminServiceController@removeImage')->name('admin.service.imagermv');
-    Route::post('/img-db-remove', 'Admin\AdminServiceController@imagedbrmv')->name('admin.service.imgdbrmv');
-    Route::get('delete/slider/image', 'Admin\AdminServiceController@deleteSliderImage')->name('admin.service.slider.delete');
-    Route::post('store', 'Admin\AdminServiceController@store')->name('admin.service_managment.store');
-    Route::get('edit/{id}', 'Admin\AdminServiceController@edit')->name('admin.service_managment.edit');
-    Route::post('update/{id}', 'Admin\AdminServiceController@update')->name('admin.service_managment.update');
-    Route::post('delete/{id}', 'Admin\AdminServiceController@destroy')->name('admin.service_managment.delete');
-    Route::post(
-      '/bulk-delete-services',
-      'Admin\AdminServiceController@bulkDestroy'
-    )->name('admin.service_managment.bulk_delete');
-    Route::post('service-status', 'Admin\AdminServiceController@servicestatus')->name('admin.service.status.change');
-
-    //service promotion
-    Route::post('payment/process/', 'Admin\AdminServiceController@featured')->name('admin.featured.payment');
-    //service inquery email
-    Route::prefix('service-inquiry')->middleware('permission:Service Inquiry')->group(function () {
-      Route::get('/', 'Admin\ServiceInqController@message')->name('admin.booking.inquiry');
-      Route::post('/delete/{id}', 'Admin\ServiceInqController@messageDestroy')->name('admin.booking.inquiry.destory');
-      Route::post('bulk_delete', 'Admin\ServiceInqController@bulkDelete')->name('admin.booking.inquiry.bulk_delete');
-    });
-
-    //featured service managment
-    Route::prefix('featured-service')->middleware('permission:Featured Services')->group(function () {
-      Route::get('charge', 'Admin\FeaturedService\FeaturedServiceController@charge')->name('admin.charge.index');
-
-      Route::post('charge/store', 'Admin\FeaturedService\FeaturedServiceController@chargeStore')->name('admin.charge.store');
-
-      Route::post('charge/update', 'Admin\FeaturedService\FeaturedServiceController@chargeUpdate')->name('admin.charge.update');
-
-      Route::post('charge/delete/{id}', 'Admin\FeaturedService\FeaturedServiceController@destroy')->name('admin.charge.delete');
-
-      Route::post('/delete/{id}', 'Admin\FeaturedService\FeaturedServiceController@deleteFeaturedService')->name('admin.featued-service.delete');
-
-      Route::post('/bulk-destory', 'Admin\FeaturedService\FeaturedServiceController@bulkDestroyFeaturedService')->name('admin.featued-service.bulk-destory');
-
-      Route::post('bulk-delete-charge', 'Admin\FeaturedService\FeaturedServiceController@bulkDestroy')->name('admin.charge.bulkdestroy');
-
-      Route::get(
-        'all',
-        'Admin\FeaturedService\FeaturedServiceController@featuredService'
-      )->name('admin.all-featured.service');
-
-      Route::get('pending', 'Admin\FeaturedService\FeaturedServiceController@pendingFeaturedService')->name('admin.pending-featured.service');
-
-      Route::get('approved', 'Admin\FeaturedService\FeaturedServiceController@apporvedFeaturedService')->name('admin.approved-featured.service');
-
-      Route::get('rejected', 'Admin\FeaturedService\FeaturedServiceController@rejectFeaturedService')->name('admin.rejected-featured.service');
-
-      Route::post('/update-payment-status/{id}', 'Admin\FeaturedService\FeaturedServiceController@updatePaymentStatus')->name('admin.featured_service.order.update_payment_status');
-
-      Route::post('/update-order-status/{id}', 'Admin\FeaturedService\FeaturedServiceController@updateOrderStatus')->name('admin.featured_service.order.update_order_status');
-    });
-  });
-
-  // subscription Log
-  Route::get('/subscription-log', 'Admin\PaymentLogController@index')->name('admin.subscription-log.index');
-  Route::post('/payment-log/update', 'Admin\PaymentLogController@update')->name('admin.payment-log.update');
-
-  //package route
-  Route::prefix('package')->group(function () {
-    // Package Settings routes
-    Route::get('/settings', 'Admin\PackageController@settings')->name('admin.package.settings');
-    Route::post('/settings/update', 'Admin\PackageController@updateSettings')->name('admin.package.settings.update');
-    // Package routes
-    Route::get('packages', 'Admin\PackageController@index')->name('admin.package.index');
-    Route::post('package/upload', 'Admin\PackageController@upload')->name('admin.package.upload');
-    Route::post('package/store', 'Admin\PackageController@store')->name('admin.package.store');
-    Route::get('package/{id}/edit', 'Admin\PackageController@edit')->name('admin.package.edit');
-    Route::post('package/update', 'Admin\PackageController@update')->name('admin.package.update');
-    Route::post('package/{id}/uploadUpdate', 'Admin\PackageController@uploadUpdate')->name('admin.package.uploadUpdate');
-    Route::post('package/delete', 'Admin\PackageController@delete')->name('admin.package.delete');
-    Route::post('package/bulk-delete', 'Admin\PackageController@bulkDelete')->name('admin.package.bulk.delete');
-  });
-
-
-  // shop managment route
-  Route::prefix('/shop-management')->middleware('permission:Shop Management')->group(function () {
-    // tax route
-    Route::get('/tax-amount', 'Admin\BasicSettings\BasicController@productTaxAmount')->name('admin.shop_management.tax_amount');
-
-    Route::post('/update-tax-amount', 'Admin\BasicSettings\BasicController@updateProductTaxAmount')->name('admin.shop_management.update_tax_amount');
-
-    Route::get('/settings', 'Admin\BasicSettings\BasicController@settings')->name('admin.shop_management.settings');
-
-    Route::post('/update-settings', 'Admin\BasicSettings\BasicController@updateSettings')->name('admin.shop_management.update_settings');
-
-    // shipping charge route
-    Route::get('/shipping-charges', 'Admin\Shop\ShippingChargeController@index')->name('admin.shop_management.shipping_charges');
-
-    Route::post('/store-charge', 'Admin\Shop\ShippingChargeController@store')->name('admin.shop_management.store_charge');
-
-    Route::post('/update-charge', 'Admin\Shop\ShippingChargeController@update')->name('admin.shop_management.update_charge');
-
-    Route::post('/delete-charge/{id}', 'Admin\Shop\ShippingChargeController@destroy')->name('admin.shop_management.delete_charge');
-
-    // coupon route
-    Route::get('/coupons', 'Admin\Shop\CouponController@index')->name('admin.shop_management.coupons');
-
-    Route::post('/store-coupon', 'Admin\Shop\CouponController@store')->name('admin.shop_management.store_coupon');
-
-    Route::post('/update-coupon', 'Admin\Shop\CouponController@update')->name('admin.shop_management.update_coupon');
-
-    Route::post('/delete-coupon/{id}', 'Admin\Shop\CouponController@destroy')->name('admin.shop_management.delete_coupon');
-
-    // product category route
-    Route::prefix('/product')->group(function () {
-      Route::get('/categories', 'Admin\Shop\CategoryController@index')->name('admin.shop_management.product.categories');
-
-      Route::post('/store-category', 'Admin\Shop\CategoryController@store')->name('admin.shop_management.product.store_category');
-
-      Route::post('/update-category', 'Admin\Shop\CategoryController@update')->name('admin.shop_management.product.update_category');
-
-      Route::post(
-        '/delete-category/{id}',
-        'Admin\Shop\CategoryController@destroy'
-      )->name('admin.shop_management.product.delete_category');
-
-      Route::post(
-        '/bulk-delete-category',
-        'Admin\Shop\CategoryController@bulkDestroy'
-      )->name('admin.shop_management.product.bulk_delete_category');
-    });
-
-    // product route
-    Route::get('/products', 'Admin\Shop\ProductController@index')->name('admin.shop_management.products');
-
-    Route::get('/select-product-type', 'Admin\Shop\ProductController@productType')->name('admin.shop_management.select_product_type');
-
-    Route::get(
-      '/create-product/{type}',
-      'Admin\Shop\ProductController@create'
-    )->name('admin.shop_management.create_product');
-
-    Route::post('/upload-slider-image', 'Admin\Shop\ProductController@uploadImage')->name('admin.shop_management.upload_slider_image');
-
-    Route::post('/remove-slider-image', 'Admin\Shop\ProductController@removeImage')->name('admin.shop_management.remove_slider_image');
-
-    Route::post('/store-product', 'Admin\Shop\ProductController@store')->name('admin.shop_management.store_product');
-
-    Route::post('/product/{id}/update-featured-status', 'Admin\Shop\ProductController@updateFeaturedStatus')->name('admin.shop_management.product.update_featured_status');
-
-    Route::get(
-      '/edit-product/{id}/{type}',
-      'Admin\Shop\ProductController@edit'
-    )->name('admin.shop_management.edit_product');
-
-    Route::post('/detach-slider-image', 'Admin\Shop\ProductController@detachImage')->name('admin.shop_management.detach_slider_image');
-
-    Route::post('/update-product/{id}', 'Admin\Shop\ProductController@update')->name('admin.shop_management.update_product');
-
-    Route::post('/delete-product/{id}', 'Admin\Shop\ProductController@destroy')->name('admin.shop_management.delete_product');
-
-    Route::post('/bulk-delete-product', 'Admin\Shop\ProductController@bulkDestroy')->name('admin.shop_management.bulk_delete_product');
-
-    // order route
-    Route::get('/orders', 'Admin\Shop\OrderController@orders')->name('admin.shop_management.orders');
-
-    Route::prefix('/order/{id}')->group(function () {
-      Route::post('/update-payment-status', 'Admin\Shop\OrderController@updatePaymentStatus')->name('admin.shop_management.order.update_payment_status');
-      Route::post('/update-order-status', 'Admin\Shop\OrderController@updateOrderStatus')->name('admin.shop_management.order.update_order_status');
-      Route::get('/details', 'Admin\Shop\OrderController@show')->name('admin.shop_management.order.details');
-      Route::post('/delete', 'Admin\Shop\OrderController@destroy')->name('admin.shop_management.order.delete');
-    });
-
-    Route::post('/bulk-delete-order', 'Admin\Shop\OrderController@bulkDestroy')->name('admin.shop_management.bulk_delete_order');
-
-    // report route
-    Route::get('/report', 'Admin\Shop\OrderController@report')->name('admin.shop_management.report');
-
-    Route::get('/export-report', 'Admin\Shop\OrderController@exportReport')->name('admin.shop_management.export_report');
-  });
-
-  // user management route
-  Route::prefix('/user-management')->middleware('permission:User Management')->group(function () {
-    // registered user route
-    Route::get('/registered-users', 'Admin\User\UserController@index')->name('admin.user_management.registered_users');
-
-    Route::get('/create', 'Admin\User\UserController@create')->name('admin.user_management.registered_user.create');
-    Route::post('/store', 'Admin\User\UserController@store')->name('admin.user_management.registered_user.store');
-
-    Route::prefix('/user/{id}')->group(function () {
-
-      Route::get('/edit', 'Admin\User\UserController@edit')->name('admin.user_management.registered_user.edit');
-      Route::post('/update', 'Admin\User\UserController@update')->name('admin.user_management.registered_user.update');
-
-      Route::post('/update-account-status', 'Admin\User\UserController@updateAccountStatus')->name('admin.user_management.user.update_account_status');
-
-      Route::post('/update-email-status', 'Admin\User\UserController@updateEmailStatus')->name('admin.user_management.user.update_email_status');
-
-      Route::get('/change-password', 'Admin\User\UserController@changePassword')->name('admin.user_management.user.change_password');
-
-      Route::post('/update-password', 'Admin\User\UserController@updatePassword')->name('admin.user_management.user.update_password');
-
-      Route::post('/delete', 'Admin\User\UserController@destroy')->name('admin.user_management.user.delete');
-      Route::get('/secret-login', 'Admin\User\UserController@secret_login')->name('admin.user_management.user.secret-login');
-    });
-
-    Route::post('/bulk-delete-user', 'Admin\User\UserController@bulkDestroy')->name('admin.user_management.bulk_delete_user');
-
-    // subscriber route
-    Route::get('/subscribers', 'Admin\User\SubscriberController@index')->name('admin.user_management.subscribers');
-
-    Route::post('/subscriber/{id}/delete', 'Admin\User\SubscriberController@destroy')->name('admin.user_management.subscriber.delete');
-
-    Route::post(
-      '/bulk-delete-subscriber',
-      'Admin\User\SubscriberController@bulkDestroy'
-    )->name('admin.user_management.bulk_delete_subscriber');
-
-    Route::get('/mail-for-subscribers', 'Admin\User\SubscriberController@writeEmail')->name('admin.user_management.mail_for_subscribers');
-
-    Route::post(
-      '/subscribers/send-email',
-      'Admin\User\SubscriberController@prepareEmail'
-    )->name('admin.user_management.subscribers.send_email');
-  });
-
-
-  // vendor management route
-  Route::prefix('/vendor-management')->middleware('permission:User Management')->group(function () {
-    Route::get('/settings', 'Admin\VendorManagementController@settings')->name('admin.vendor_management.settings');
-    Route::post('/settings/update', 'Admin\VendorManagementController@update_setting')->name('admin.vendor_management.setting.update');
-
-    Route::get('/add-vendor', 'Admin\VendorManagementController@add')->name('admin.vendor_management.add_vendor');
-    Route::post('/save-vendor', 'Admin\VendorManagementController@create')->name('admin.vendor_management.save-vendor');
-
-    Route::get('/registered-vendors', 'Admin\VendorManagementController@index')->name('admin.vendor_management.registered_vendor');
-
-    Route::prefix('/vendor/{id}')->group(function () {
-
-      Route::post(
-        '/update-account-status',
-        'Admin\VendorManagementController@updateAccountStatus'
-      )->name('admin.vendor_management.vendor.update_account_status');
-
-      Route::post('/update-featured-status', 'Admin\VendorManagementController@updateFeaturedStatus')->name('admin.vendor_management.vendor.update_featured_status');
-
-      Route::post(
-        '/update-email-status',
-        'Admin\VendorManagementController@updateEmailStatus'
-      )->name('admin.vendor_management.vendor.update_email_status');
-
-      Route::get('/details', 'Admin\VendorManagementController@show')->name('admin.vendor_management.vendor_details');
-
-      Route::get('/edit', 'Admin\VendorManagementController@edit')->name('admin.edit_management.vendor_edit');
-
-      Route::post('/update', 'Admin\VendorManagementController@update')->name('admin.vendor_management.vendor.update_vendor');
-
-      Route::post(
-        '/update/vendor/balance',
-        'Admin\VendorManagementController@update_vendor_balance'
-      )->name('admin.vendor_management.update_vendor_balance');
-
-      Route::get('/change-password', 'Admin\VendorManagementController@changePassword')->name('admin.vendor_management.vendor.change_password');
-
-      Route::post('/update-password', 'Admin\VendorManagementController@updatePassword')->name('admin.vendor_management.vendor.update_password');
-
-      Route::post('/delete', 'Admin\VendorManagementController@destroy')->name('admin.vendor_management.vendor.delete');
-
-      //add or subtract balance
-      Route::get('/balance', 'Admin\VendorManagementController@balance')->name('admin.edit_management.balance');
-      Route::post('/update/vendor/balance', 'Admin\VendorManagementController@update_vendor_balance')->name('admin.vendor_management.vendor.update_vendor_balance');
-    });
-
-    Route::post('/vendor/current-package/remove', 'Admin\VendorManagementController@removeCurrPackage')->name('vendor.currPackage.remove');
-
-    Route::post('/vendor/current-package/change', 'Admin\VendorManagementController@changeCurrPackage')->name('vendor.currPackage.change');
-
-    Route::post('/vendor/current-package/add', 'Admin\VendorManagementController@addCurrPackage')->name('vendor.currPackage.add');
-
-    Route::post('/vendor/next-package/remove', 'Admin\VendorManagementController@removeNextPackage')->name('vendor.nextPackage.remove');
-
-    Route::post('/vendor/next-package/change', 'Admin\VendorManagementController@changeNextPackage')->name('vendor.nextPackage.change');
-
-    Route::post(
-      '/vendor/next-package/add',
-      'Admin\VendorManagementController@addNextPackage'
-    )->name('vendor.nextPackage.add');
-
-
-    Route::post(
-      '/bulk-delete-vendor',
-      'Admin\VendorManagementController@bulkDestroy'
-    )->name('admin.vendor_management.bulk_delete_vendor');
-
-    Route::get('/secret-login/{id}', 'Admin\VendorManagementController@secret_login')->name('admin.vendor_management.vendor.secret_login');
-  });
-  // mobile interface route
-  Route::prefix('mobile-interface')->middleware('permission:Mobile Interface')->group(function () {
-    Route::get('/', 'Admin\MobileInterfaceController@index')->name('admin.mobile_interface');
-    Route::get('/home-page-content', 'Admin\MobileInterfaceController@content')->name('admin.mobile_interface_content');
-    Route::post('home-page-content/update', 'Admin\MobileInterfaceController@update')->name('admin.mobile_interface_update');
-    Route::get('/general-setting', 'Admin\MobileInterfaceController@setting')->name('admin.mobile_interface_gsetting');
-    Route::post('/general-setting/update', 'Admin\MobileInterfaceController@settingUpdate')->name('admin.mobile_interface_gsetting.update');
-
-    Route::get('/online-gateways', 'Admin\MobileInterfaceController@paymentGateways')->name('admin.mobile_interface.payment_gateways');
-
-    Route::get('/plugins', 'Admin\MobileInterfaceController@plugins')->name('admin.mobile_interface.plugins');
-  });
-  //website pages all-route
-  Route::prefix('pages')->group(function () {
-    // home-page route
-    Route::prefix('/home-page')->middleware('permission:Home Page')->group(function () {
-      //about page custom section
-      Route::prefix('additional-sections')->group(function () {
-        Route::get('sections', 'Admin\HomePage\AdditionalSectionController@index')->name('admin.home.additional_sections');
-        Route::get(
-          'add-section',
-          'Admin\HomePage\AdditionalSectionController@create'
-        )->name('admin.home.additional_section.create');
-        Route::post('store-section', 'Admin\HomePage\AdditionalSectionController@store')->name('admin.home.additional_section.store');
-        Route::get('edit-section/{id}', 'Admin\HomePage\AdditionalSectionController@edit')->name('admin.home.additional_section.edit');
-        Route::post('update/{id}', 'Admin\HomePage\AdditionalSectionController@update')->name('admin.home.additional_section.update');
-        Route::post('delete/{id}', 'Admin\HomePage\AdditionalSectionController@delete')->name('admin.home.additional_section.delete');
-        Route::post(
-          'bulkdelete',
-          'Admin\HomePage\AdditionalSectionController@bulkdelete'
-        )->name('admin.home.additional_section.bulkdelete');
-      });
-
-
-      Route::prefix('/work-process')->group(function () {
-        Route::post('/store', 'Admin\HomePage\WorkProcessController@storeWorkProcess')->name('admin.basic_settings.store_work_process');
-
-        Route::post('/update', 'Admin\HomePage\WorkProcessController@updateWorkProcess')->name('admin.basic_settings.update_work_process');
-
-        Route::post('{id}/delete', 'Admin\HomePage\WorkProcessController@destroyWorkProcess')->name('admin.basic_settings.delete_work_process');
-
-        Route::post('/bulk-delete', 'Admin\HomePage\WorkProcessController@bulkDestroyWorkProcess')->name('admin.basic_settings.bulk_delete_work_process');
-      });
-
-      //section titles
-      Route::get('/images-texts', 'Admin\HomePage\SectionController@sectionContent')->name('admin.home_page.section_content');
-      Route::post('/update/images-texts', 'Admin\HomePage\SectionController@updateContent')->name('admin.home_page.section_content_update');
-      // section customization
-      Route::get('/section-customization', 'Admin\HomePage\SectionController@index')->name('admin.home_page.section_customization');
-
-      Route::post(
-        '/update-section-status',
-        'Admin\HomePage\SectionController@update'
-      )->name('admin.home_page.update_section_status');
-
-
-      // banners route
-      Route::get('/banners', 'Admin\HomePage\BannerController@index')->name('admin.home_page.banners');
-
-      Route::post('/store-banners', 'Admin\HomePage\BannerController@store')->name('admin.home_page.store_banner');
-
-      Route::post('/update-banners', 'Admin\HomePage\BannerController@update')->name('admin.home_page.update_banner');
-
-      Route::post('/delete-banners/{id}', 'Admin\HomePage\BannerController@destroy')->name('admin.home_page.delete_banner');
-      Route::post('/bulk-delete', 'Admin\HomePage\BannerController@bulkDestroy')->name('admin.home_page.bulk_delete_banner');
-    });
-    // work process section
-    Route::get('/work-process', 'Admin\HomePage\WorkProcessController@sectionInfo')->name('admin.home_page.work_process_section');
-
-    Route::prefix('/work-process')->group(function () {
-      Route::post('/store', 'Admin\HomePage\WorkProcessController@storeWorkProcess')->name('admin.home_page.store_work_process');
-
-      Route::post('/update', 'Admin\HomePage\WorkProcessController@updateWorkProcess')->name('admin.home_page.update_work_process');
-
-      Route::post('{id}/delete', 'Admin\HomePage\WorkProcessController@destroyWorkProcess')->name('admin.home_page.delete_work_process');
-
-      Route::post('/bulk-delete', 'Admin\HomePage\WorkProcessController@bulkDestroyWorkProcess')->name('admin.home_page.bulk_delete_work_process');
-    });
-    // faq route
-    Route::prefix('/faqs')->middleware('permission:FAQs')->group(function () {
-      Route::get('', 'Admin\FaqController@index')->name('admin.faq_management');
-
-      Route::post('/store-faq', 'Admin\FaqController@store')->name('admin.faq_management.store_faq');
-
-      Route::post('/update-faq', 'Admin\FaqController@update')->name('admin.faq_management.update_faq');
-
-      Route::post('/delete-faq/{id}', 'Admin\FaqController@destroy')->name('admin.faq_management.delete_faq');
-
-      Route::post('/bulk-delete-faq', 'Admin\FaqController@bulkDestroy')->name('admin.faq_management.bulk_delete_faq');
-    });
-    //about-us-page route
-    Route::prefix('about-us')->middleware('permission:About Us')->group(function () {
-      //about us section
-      Route::get('/about', 'Admin\AboutUs\AboutSectionController@about_us')->name('admin.about_us.index');
-
-      Route::post('/update-about-us', 'Admin\AboutUs\AboutSectionController@update_about_us')->name('admin.about_us.update');
-      Route::get('/testimonial-section', 'Admin\HomePage\TestimonialController@index')->name('admin.about_us.testimonial_section');
-      Route::post('/testimonial-section/update', 'Admin\HomePage\TestimonialController@updateSection')->name('admin.about_us.testimonial_section_update');
-      Route::get('/customize-section', 'Admin\AboutUs\AboutSectionController@customizeSection')->name('admin.about_us.customize');
-      Route::post('/customize-section/update', 'Admin\AboutUs\AboutSectionController@customizeUpdate')->name('admin.about_us.customize_update');
-
-      // features
-      Route::post('/store-features', 'Admin\AboutUs\FeaturesController@storeFeatures')->name('admin.about_us.store_features');
-
-      Route::post('/update-features', 'Admin\AboutUs\FeaturesController@updateFeatures')->name('admin.about_us.update_features');
-
-      Route::post('{id}/delete', 'Admin\AboutUs\FeaturesController@destroy')->name('admin.about_us.delete_features');
-
-      Route::post('/bulk-delete', 'Admin\AboutUs\FeaturesController@bulkDestroy')->name('admin.about_us.bulk_delete_features');
-
-      //about page custom section
-      Route::prefix('additional-sections')->group(function () {
-        Route::get('sections', 'Admin\AdditionalSectionController@index')->name('admin.additional_sections');
-        Route::get(
-          'add-section',
-          'Admin\AdditionalSectionController@create'
-        )->name('admin.additional_section.create');
-        Route::post('store-section', 'Admin\AdditionalSectionController@store')->name('admin.additional_section.store');
-        Route::get('edit-section/{id}', 'Admin\AdditionalSectionController@edit')->name('admin.additional_section.edit');
-        Route::post('update/{id}', 'Admin\AdditionalSectionController@update')->name('admin.additional_section.update');
-        Route::post('delete/{id}', 'Admin\AdditionalSectionController@delete')->name('admin.additional_section.delete');
-        Route::post(
-          'bulkdelete',
-          'Admin\AdditionalSectionController@bulkdelete'
-        )->name('admin.additional_section.bulkdelete');
-      });
-    });
-    // testimonial section
-    Route::get('/testimonials', 'Admin\HomePage\TestimonialController@index')->name('admin.home_page.testimonial_section');
-    Route::prefix('/testimonial')->group(function () {
-      Route::post('/store', 'Admin\HomePage\TestimonialController@storeTestimonial')->name('admin.home_page.store_testimonial');
-
-      Route::post('/update', 'Admin\HomePage\TestimonialController@updateTestimonial')->name('admin.home_page.update_testimonial');
-
-      Route::post('{id}/delete', 'Admin\HomePage\TestimonialController@destroyTestimonial')->name('admin.home_page.delete_testimonial');
-
-      Route::post('/bulk-delete', 'Admin\HomePage\TestimonialController@bulkDestroyTestimonial')->name('admin.home_page.bulk_delete_testimonial');
-    });
-    // blog management route
-    Route::prefix('/blog')->middleware('permission:Blog')->group(function () {
-      // blog category route
-      Route::get('/categories', 'Admin\Journal\CategoryController@index')->name('admin.blog_management.categories');
-
-      Route::post('/store-category', 'Admin\Journal\CategoryController@store')->name('admin.blog_management.store_category');
-
-      Route::post('/update-category', 'Admin\Journal\CategoryController@update')->name('admin.blog_management.update_category');
-
-      Route::post(
-        '/delete-category/{id}',
-        'Admin\Journal\CategoryController@destroy'
-      )->name('admin.blog_management.delete_category');
-
-      Route::post(
-        '/bulk-delete-category',
-        'Admin\Journal\CategoryController@bulkDestroy'
-      )->name('admin.blog_management.bulk_delete_category');
-
-      // blog route
-      Route::get('/posts', 'Admin\Journal\BlogController@index')->name('admin.blog_management.blogs');
-
-      Route::get('/create-blog', 'Admin\Journal\BlogController@create')->name('admin.blog_management.create_blog');
-
-      Route::post('/store-blog', 'Admin\Journal\BlogController@store')->name('admin.blog_management.store_blog');
-
-      Route::get('/edit-blog/{id}', 'Admin\Journal\BlogController@edit')->name('admin.blog_management.edit_blog');
-
-      Route::post('/update-blog/{id}', 'Admin\Journal\BlogController@update')->name('admin.blog_management.update_blog');
-
-      Route::post('/delete-blog/{id}', 'Admin\Journal\BlogController@destroy')->name('admin.blog_management.delete_blog');
-
-      Route::post('/bulk-delete-blog', 'Admin\Journal\BlogController@bulkDestroy')->name('admin.blog_management.bulk_delete_blog');
-    });
-    // footer route
-    Route::prefix('/footer')->middleware('permission:Footer')->group(function () {
-      // logo & image route
-      Route::get('/logo', 'Admin\Footer\ImageController@index')->name('admin.footer.logo_and_image');
-
-      Route::post('/update-logo', 'Admin\Footer\ImageController@updateLogo')->name('admin.footer.update_logo');
-
-      // content route
-      Route::get('/content', 'Admin\Footer\ContentController@index')->name('admin.footer.content');
-
-      Route::post('/update-content', 'Admin\Footer\ContentController@update')->name('admin.footer.update_content');
-
-      // quick link route
-      Route::get('/quick-links', 'Admin\Footer\QuickLinkController@index')->name('admin.footer.quick_links');
-
-      Route::post('/store-quick-link', 'Admin\Footer\QuickLinkController@store')->name('admin.footer.store_quick_link');
-
-      Route::post('/update-quick-link', 'Admin\Footer\QuickLinkController@update')->name('admin.footer.update_quick_link');
-
-      Route::post(
-        '/delete-quick-link/{id}',
-        'Admin\Footer\QuickLinkController@destroy'
-      )->name('admin.footer.delete_quick_link');
-    });
-    // seo route
-    Route::get('/seo-informations', 'Admin\BasicSettings\SEOController@index')->name('admin.basic_settings.seo')->middleware('permission:SEO Informations');
-    // breadcrumb route
-    Route::prefix('breadcrumbs')->middleware('permission:Breadcrumbs')->group(function () {
-      Route::get('/image', 'Admin\BasicSettings\BasicController@breadcrumb')->name('admin.basic_settings.breadcrumb');
-      Route::get('/headings', 'Admin\BasicSettings\PageHeadingController@pageHeadings')->name('admin.basic_settings.page_headings');
-    });
-    //contact page route
-    Route::get('/contact-page', 'Admin\BasicSettings\BasicController@contact_page')->name('admin.basic_settings.contact_page')->middleware('permission:Contact Page');
-
-    // additional-pages route
-    Route::prefix('/additional-pages')->middleware('permission:Additional Pages')->group(function () {
-      Route::get('all-pages', 'Admin\CustomPageController@index')->name('admin.custom_pages');
-
-      Route::get('/add-page', 'Admin\CustomPageController@create')->name('admin.custom_pages.create_page');
-
-      Route::post('/store-page', 'Admin\CustomPageController@store')->name('admin.custom_pages.store_page');
-
-      Route::get('/edit-page/{id}', 'Admin\CustomPageController@edit')->name('admin.custom_pages.edit_page');
-
-      Route::post('/update-page/{id}', 'Admin\CustomPageController@update')->name('admin.custom_pages.update_page');
-
-      Route::post('/delete-page/{id}', 'Admin\CustomPageController@destroy')->name('admin.custom_pages.delete_page');
-
-      Route::post('/bulk-delete-page', 'Admin\CustomPageController@bulkDestroy')->name('admin.custom_pages.bulk_delete_page');
-    });
-  });
-
-  #====support tickets ============
-
-  Route::prefix('support-ticket')->group(function () {
-    Route::get('/setting', 'Admin\SupportTicketController@setting')->name('admin.support_ticket.setting');
-    Route::post('/setting/update', 'Admin\SupportTicketController@update_setting')->name('admin.support_ticket.update_setting');
-    Route::get('/tickets', 'Admin\SupportTicketController@index')->name('admin.support_tickets');
-    Route::get('/message/{id}', 'Admin\SupportTicketController@message')->name('admin.support_tickets.message');
-    Route::post('/zip-upload', 'Admin\SupportTicketController@zip_file_upload')->name('admin.support_ticket.zip_file.upload');
-    Route::post('/reply/{id}', 'Admin\SupportTicketController@ticketreply')->name('admin.support_ticket.reply');
-    Route::post('/closed/{id}', 'Admin\SupportTicketController@ticket_closed')->name('admin.support_ticket.close');
-    Route::post('/assign-stuff/{id}', 'Admin\SupportTicketController@assign_stuff')->name('assign_stuff.supoort.ticket');
-
-    Route::get('/unassign-stuff/{id}', 'Admin\SupportTicketController@unassign_stuff')->name('admin.support_tickets.unassign');
-
-    Route::post('/delete/{id}', 'Admin\SupportTicketController@delete')->name('admin.support_tickets.delete');
-    Route::post('/bulk-delete', 'Admin\SupportTicketController@bulk_delete')->name('admin.support_tickets.bulk_delete');
-  });
-
-  // advertise route
-  Route::prefix('/advertise')->middleware('permission:Advertise')->group(function () {
-    Route::get('/settings', 'Admin\AdvertisementController@advertiseSettings')->name('admin.advertise.settings');
-
-    Route::post('/update-settings', 'Admin\AdvertisementController@updateAdvertiseSettings')->name('admin.advertise.update_settings');
-
-    Route::get('/all-advertisement', 'Admin\AdvertisementController@index')->name('admin.advertise.all_advertisement');
-
-    Route::get('/preview-image', 'Admin\AdvertisementController@previewImage')->name('admin.advertise.preview_image');
-
-    Route::post('/store-advertisement', 'Admin\AdvertisementController@store')->name('admin.advertise.store_advertisement');
-
-    Route::post(
-      '/update-advertisement',
-      'Admin\AdvertisementController@update'
-    )->name('admin.advertise.update_advertisement');
-
-    Route::post('/delete-advertisement/{id}', 'Admin\AdvertisementController@destroy')->name('admin.advertise.delete_advertisement');
-
-    Route::post('/bulk-delete-advertisement', 'Admin\AdvertisementController@bulkDestroy')->name('admin.advertise.bulk_delete_advertisement');
-  });
-
-
-  // announcement-popup route
-  Route::prefix('/announcement-popups')->middleware('permission:Announcement Popups')->group(function () {
-    Route::get('', 'Admin\PopupController@index')->name('admin.announcement_popups');
-
-    Route::get('/select-popup-type', 'Admin\PopupController@popupType')->name('admin.announcement_popups.select_popup_type');
-
-    Route::get('/create-popup/{type}', 'Admin\PopupController@create')->name('admin.announcement_popups.create_popup');
-
-    Route::post('/store-popup', 'Admin\PopupController@store')->name('admin.announcement_popups.store_popup');
-
-    Route::post('/popup/{id}/update-status', 'Admin\PopupController@updateStatus')->name('admin.announcement_popups.update_popup_status');
-
-    Route::get('/edit-popup/{id}', 'Admin\PopupController@edit')->name('admin.announcement_popups.edit_popup');
-
-    Route::post('/update-popup/{id}', 'Admin\PopupController@update')->name('admin.announcement_popups.update_popup');
-
-    Route::post('/delete-popup/{id}', 'Admin\PopupController@destroy')->name('admin.announcement_popups.delete_popup');
-
-    Route::post('/bulk-delete-popup', 'Admin\PopupController@bulkDestroy')->name('admin.announcement_popups.bulk_delete_popup');
-  });
-
-
-
-
-  //website settings
-  Route::prefix('/settings')->middleware('permission:Settings')->group(function () {
-    // basic settings information route
-    Route::get('/information', 'Admin\BasicSettings\BasicController@information')->name('admin.basic_settings.information');
-
-    Route::post('/update-info', 'Admin\BasicSettings\BasicController@updateInfo')->name('admin.basic_settings.update_info');
-
-    Route::get('/general-settings', 'Admin\BasicSettings\BasicController@general_settings')->name('admin.basic_settings.general_settings');
-
-    Route::post('/update-general-settings', 'Admin\BasicSettings\BasicController@update_general_setting')->name('admin.basic_settings.general_settings.update');
-
-    Route::post('/update-contact-page', 'Admin\BasicSettings\BasicController@update_contact_page')->name('admin.basic_settings.contact_page.update');
-
-    // basic settings mail route start
-    Route::get('/mail-from-admin', 'Admin\BasicSettings\BasicController@mailFromAdmin')->name('admin.basic_settings.mail_from_admin');
-
-    Route::post(
-      '/update-mail-from-admin',
-      'Admin\BasicSettings\BasicController@updateMailFromAdmin'
-    )->name('admin.basic_settings.update_mail_from_admin');
-
-    Route::get('/mail-to-admin', 'Admin\BasicSettings\BasicController@mailToAdmin')->name('admin.basic_settings.mail_to_admin');
-
-    Route::post(
-      '/update-mail-to-admin',
-      'Admin\BasicSettings\BasicController@updateMailToAdmin'
-    )->name('admin.basic_settings.update_mail_to_admin');
-
-    Route::get('/mail-templates', 'Admin\BasicSettings\MailTemplateController@index')->name('admin.basic_settings.mail_templates');
-
-    Route::get('/edit-mail-template/{id}', 'Admin\BasicSettings\MailTemplateController@edit')->name('admin.basic_settings.edit_mail_template');
-
-    Route::post('/update-mail-template/{id}', 'Admin\BasicSettings\MailTemplateController@update')->name('admin.basic_settings.update_mail_template');
-    // basic settings mail route end
-
-    Route::post('/update-breadcrumb', 'Admin\BasicSettings\BasicController@updateBreadcrumb')->name('admin.basic_settings.update_breadcrumb');
-
-    Route::post(
-      '/update-page-headings',
-      'Admin\BasicSettings\PageHeadingController@updatePageHeadings'
-    )->name('admin.basic_settings.update_page_headings');
-
-    // basic settings plugins route start
-    Route::get('/plugins', 'Admin\BasicSettings\BasicController@plugins')->name('admin.basic_settings.plugins');
-
-    //whatsapp manager plugin
-    Route::get('/whatsapp-manager-template', 'Admin\BasicSettings\WhatsappManagerController@index')
-      ->name('admin.basic_settings.whatsapp_manager_template');
-    Route::get('/whatsapp-manager-template-edit/{id}', 'Admin\BasicSettings\WhatsappManagerController@edit')
-      ->name('admin.basic_settings.whatsapp_manager_template_edit');
-    Route::post('/whatsapp-manager-template-update/{id}', 'Admin\BasicSettings\WhatsappManagerController@update')
-      ->name('admin.basic_settings.whatsapp_manager_template_update');
-
-    Route::post('/update-firebase', 'Admin\BasicSettings\BasicController@updateFirebase')->name('admin.basic_settings.updateFirebase');
-
-    Route::post('/update-disqus', 'Admin\BasicSettings\BasicController@updateDisqus')->name('admin.basic_settings.update_disqus');
-
-    Route::post('/google-map', 'Admin\BasicSettings\BasicController@googleMap')->name('admin.basic_settings.update_map');
-
-    Route::post('/update-zoom', 'Admin\BasicSettings\BasicController@updateZoom')->name('admin.basic_settings.update_zoom');
-    Route::post('/update-wp_manager', 'Admin\BasicSettings\BasicController@update_wp_manager')->name('admin.basic_settings.update_wp_manager');
-
-    Route::post('/google-calender', 'Admin\BasicSettings\BasicController@updateCalender')->name('admin.basic_settings.update_calender');
-
-    Route::post('/update-tawkto', 'Admin\BasicSettings\BasicController@updateTawkTo')->name('admin.basic_settings.update_tawkto');
-
-    Route::post('/update-recaptcha', 'Admin\BasicSettings\BasicController@updateRecaptcha')->name('admin.basic_settings.update_recaptcha');
-
-    Route::post('/update-facebook', 'Admin\BasicSettings\BasicController@updateFacebook')->name('admin.basic_settings.update_facebook');
-
-    Route::post('/update-google', 'Admin\BasicSettings\BasicController@updateGoogle')->name('admin.basic_settings.update_google');
-
-    Route::post('/update-whatsapp', 'Admin\BasicSettings\BasicController@updateWhatsApp')->name('admin.basic_settings.update_whatsapp');
-    // basic settings plugins route end
-
-    Route::post('/update-seo', 'Admin\BasicSettings\SEOController@update')->name('admin.basic_settings.update_seo');
-
-    // basic settings maintenance-mode route
-    Route::get('/maintenance-mode', 'Admin\BasicSettings\BasicController@maintenance')->name('admin.basic_settings.maintenance_mode');
-
-    Route::post('/update-maintenance-mode', 'Admin\BasicSettings\BasicController@updateMaintenance')->name('admin.basic_settings.update_maintenance_mode');
-
-    // basic settings cookie-alert route
-    Route::get('/cookie-alert', 'Admin\BasicSettings\CookieAlertController@cookieAlert')->name('admin.basic_settings.cookie_alert');
-
-    Route::post('/update-cookie-alert', 'Admin\BasicSettings\CookieAlertController@updateCookieAlert')->name('admin.basic_settings.update_cookie_alert');
-
-    // basic-settings social-media route
-    Route::get('/social-medias', 'Admin\BasicSettings\SocialMediaController@index')->name('admin.basic_settings.social_medias');
-
-    Route::post('/store-social-media', 'Admin\BasicSettings\SocialMediaController@store')->name('admin.basic_settings.store_social_media');
-
-    Route::post('/update-social-media', 'Admin\BasicSettings\SocialMediaController@update')->name('admin.basic_settings.update_social_media');
-
-    Route::post('/delete-social-media/{id}', 'Admin\BasicSettings\SocialMediaController@destroy')->name('admin.basic_settings.delete_social_media');
-
-    // language management route start
-    Route::prefix('/languages')->middleware('permission:Languages')->group(function () {
-      Route::get('', 'Admin\LanguageController@index')->name('admin.language_management');
-
-      Route::post('/store', 'Admin\LanguageController@store')->name('admin.language_management.store');
-
-      Route::post('/{id}/make-default-language', 'Admin\LanguageController@makeDefault')->name('admin.language_management.make_default_language');
-
-      Route::post('/update', 'Admin\LanguageController@update')->name('admin.language_management.update');
-
-      Route::get('/{id}/edit-keyword', 'Admin\LanguageController@editKeyword')->name('admin.language_management.edit_keyword');
-      Route::get('/{id}/edit-admin-keyword', 'Admin\LanguageController@editAdminKeyword')->name('admin.language_management.edit_admin_keyword');
-
-      Route::post('add-keyword', 'Admin\LanguageController@addKeyword')
-        ->name('admin.language_management.add_keyword');
-      Route::post('add-admin-keyword', 'Admin\LanguageController@addAdminKeyword')
-        ->name('admin.language_management.add_admin_keyword');
-
-      Route::post('/{id}/update-keyword', 'Admin\LanguageController@updateKeyword')
-        ->name('admin.language_management.update_keyword');
-      Route::post('/{id}/update-admin-keyword', 'Admin\LanguageController@updateAdminKeyword')
-        ->name('admin.language_management.update_admin_keyword');
-
-      Route::post('/{id}/delete', 'Admin\LanguageController@destroy')->name('admin.language_management.delete');
-
-      Route::get('/{id}/check-rtl', 'Admin\LanguageController@checkRTL');
-      Route::get('/{id}/check-rtl2', 'Admin\LanguageController@checkRTL2');
-    });
-
-
-    // payment-gateway route
-    Route::prefix('/payment-gateways')->middleware('permission:Payment Gateways')->group(function () {
-      Route::get('/online-gateways', 'Admin\PaymentGateway\OnlineGatewayController@index')->name('admin.payment_gateways.online_gateways');
-
-      Route::prefix('/update-gateway')->group(function () {
-        Route::post('/iyzico', 'Admin\PaymentGateway\OnlineGatewayController@updateiyzicoInfo')->name('admin.payment_gateways.update_iyzico_info');
-        Route::post('/phonepe', 'Admin\PaymentGateway\OnlineGatewayController@phonepeUpdate')->name('admin.phonepe.update');
-        Route::post('/paytabs', 'Admin\PaymentGateway\OnlineGatewayController@paytabsUpdate')->name('admin.paytabs.update');
-        Route::post('/midtrans', 'Admin\PaymentGateway\OnlineGatewayController@midtransUpdate')->name('admin.midtrans.update');
-        Route::post('/toyyibpay', 'Admin\PaymentGateway\OnlineGatewayController@toyyibpayUpdate')->name('admin.toyyibpay.update');
-        Route::post('/myfatoorah', 'Admin\PaymentGateway\OnlineGatewayController@myfatoorahUpdate')->name('admin.myfatoorah.update');
-        Route::post('/perfect_money', 'Admin\PaymentGateway\OnlineGatewayController@perfect_moneyUpdate')->name('admin.perfect_money.update');
-        Route::post('/xendit', 'Admin\PaymentGateway\OnlineGatewayController@xenditUpdate')->name('admin.xendit.update');
-        Route::post('/yoco', 'Admin\PaymentGateway\OnlineGatewayController@yocoUpdate')->name('admin.yoco.update');
-
-        Route::post('/paypal', 'Admin\PaymentGateway\OnlineGatewayController@updatePayPalInfo')->name('admin.payment_gateways.update_paypal_info');
-        Route::post('/instamojo', 'Admin\PaymentGateway\OnlineGatewayController@updateInstamojoInfo')->name('admin.payment_gateways.update_instamojo_info');
-        Route::post('/paystack', 'Admin\PaymentGateway\OnlineGatewayController@updatePaystackInfo')->name('admin.payment_gateways.update_paystack_info');
-        Route::post('/flutterwave', 'Admin\PaymentGateway\OnlineGatewayController@updateFlutterwaveInfo')->name('admin.payment_gateways.update_flutterwave_info');
-        Route::post('/razorpay', 'Admin\PaymentGateway\OnlineGatewayController@updateRazorpayInfo')->name('admin.payment_gateways.update_razorpay_info');
-        Route::post('/mercadopago', 'Admin\PaymentGateway\OnlineGatewayController@updateMercadoPagoInfo')->name('admin.payment_gateways.update_mercadopago_info');
-        Route::post('/mollie', 'Admin\PaymentGateway\OnlineGatewayController@updateMollieInfo')->name('admin.payment_gateways.update_mollie_info');
-        Route::post('/stripe', 'Admin\PaymentGateway\OnlineGatewayController@updateStripeInfo')->name('admin.payment_gateways.update_stripe_info');
-        Route::post('/paytm', 'Admin\PaymentGateway\OnlineGatewayController@updatePaytmInfo')->name('admin.payment_gateways.update_paytm_info');
-        Route::post('/anet', 'Admin\PaymentGateway\OnlineGatewayController@updateAnetInfo')->name('admin.payment_gateways.update_anet_info');
-        Route::post('/monify', 'Admin\PaymentGateway\OnlineGatewayController@updateMonify')->name('admin.payment_gateways.update_monify');
-        Route::post('/nowpayments', 'Admin\PaymentGateway\OnlineGatewayController@updateNowPayments')->name('admin.payment_gateways.update_nowpayments');
-      });
-
-      Route::get('/offline-gateways', 'Admin\PaymentGateway\OfflineGatewayController@index')->name('admin.payment_gateways.offline_gateways');
-      Route::prefix('/offline-gateway')->group(function () {
-        Route::post('/store', 'Admin\PaymentGateway\OfflineGatewayController@store')->name('admin.payment_gateways.store_offline_gateway');
-        Route::post('/update', 'Admin\PaymentGateway\OfflineGatewayController@update')->name('admin.payment_gateways.update_offline_gateway');
-        Route::post('/update-status/{id}', 'Admin\PaymentGateway\OfflineGatewayController@updateStatus')->name('admin.payment_gateways.update_status');
-        Route::post('/delete/{id}', 'Admin\PaymentGateway\OfflineGatewayController@destroy')->name('admin.payment_gateways.delete_offline_gateway');
-      });
-    });
-  });
 });

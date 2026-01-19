@@ -1,41 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    {{-- required meta tags --}}
-    <meta charset="utf-8">
-    <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<html>
 
-    {{-- title --}}
-    <title>{{ 'Maintenance Mode | ' . config('app.name') }}</title>
+<head>
+  <title>{{ $bs->website_title }} - {{ __('Maintainance Mode') }}</title>
+  <!-- favicon -->
+  <link rel="shortcut icon" href="{{ asset('assets/front/img/' . $bs->favicon) }}" type="image/x-icon">
+  <!-- bootstrap css -->
+  <link rel="stylesheet" href="{{ asset('assets/front/css/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/front/css/503.css') }}">
+</head>
 
-    {{-- fav icon --}}
-    <link rel="shortcut icon" type="image/png" href="{{ asset('assets/img/' . $websiteInfo->favicon) }}">
-
-    {{-- bootstrap css --}}
-    <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}">
-
-    {{-- 503 css --}}
-    <link rel="stylesheet" href="{{ asset('assets/css/503.css') }}">
-  </head>
-
-  <body>
-    <div class="container">
-      <div class="content">
-        <div class="row mt-4">
-          <div class="col-lg-4 offset-lg-4">
-            <div class="maintanance-img-wrapper">
-              <img src="{{ asset('assets/img/' . $websiteInfo->maintenance_img) }}" alt="image">
-            </div>
-          </div>
-        </div>
-
-        <div class="row mt-3">
-          <div class="col-lg-8 offset-lg-2">
-            <h3 class="maintanance-txt">{!! nl2br($websiteInfo->maintenance_msg) !!}</h3>
+<body>
+  <div class="container">
+    <div class="content">
+      <div class="row">
+        <div class="col-lg-4 offset-lg-4">
+          <div class="maintain-img-wrapper">
+            <img src="{{ asset('assets/front/img/' . $bs->maintenance_img) }}" alt="">
           </div>
         </div>
       </div>
+      <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+          <h3 class="maintain-txt">
+            {!! nl2br($bs->maintainance_text) !!}
+          </h3>
+        </div>
+      </div>
     </div>
-  </body>
+  </div>
+</body>
+
 </html>

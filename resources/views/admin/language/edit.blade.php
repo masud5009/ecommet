@@ -1,56 +1,91 @@
-<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
-  aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="exampleModalLongTitle">{{ __('Update Language') }}</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
+@extends('admin.layout')
+
+@section('content')
+  <div class="page-header">
+    <h4 class="page-title">{{ __('Edit Language') }}</h4>
+    <ul class="breadcrumbs">
+      <li class="nav-home">
+        <a href="{{ route('admin.dashboard') }}">
+          <i class="flaticon-home"></i>
+        </a>
+      </li>
+      <li class="separator">
+        <i class="flaticon-right-arrow"></i>
+      </li>
+      <li class="nav-item">
+        <a href="#">{{ __('Settings') }}</a>
+      </li>
+      <li class="separator">
+        <i class="flaticon-right-arrow"></i>
+      </li>
+      <li class="nav-item">
+        <a href="{{ route('admin.language.index') }}">{{ __('Languages') }}</a>
+      </li>
+      <li class="separator">
+        <i class="flaticon-right-arrow"></i>
+      </li>
+      <li class="nav-item">
+        <a href="#">{{ __('Edit Language') }}</a>
+      </li>
+    </ul>
+  </div>
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title d-inline-block">{{ __('Edit Language') }}</div>
+          <a class="btn btn-info btn-sm float-right d-inline-block" href="{{ route('admin.language.index') }}">
+            <span class="btn-label">
+              <i class="fas fa-backward"></i>
+            </span>
+            {{ __('Back') }}
+          </a>
+        </div>
+        <div class="card-body pt-5 pb-5">
+          <div class="row">
+            <div class="col-lg-6 m-auto">
+
+              <form id="ajaxForm" class="" action="{{ route('admin.language.update') }}" method="post">
+                @csrf
+                <input type="hidden" name="language_id" value="{{ $language->id }}">
+                <div class="form-group">
+                  <label for="">{{ __('Name') }} <span class="text-danger">**</span></label>
+                  <input type="text" class="form-control" name="name" placeholder="{{ __('Enter name') }}"
+                    value="{{ $language->name }}">
+                  <p id="errname" class="mb-0 text-danger em"></p>
+                </div>
+                <div class="form-group">
+                  <label for="">{{ __('Code') }} <span class="text-danger">**</span></label>
+                  <input type="text" class="form-control" name="code" placeholder="{{ __('Enter code') }}"
+                    value="{{ $language->code }}">
+                  <p id="errcode" class="mb-0 text-danger em"></p>
+                </div>
+                <div class="form-group">
+                  <label for="">{{ __('Direction') }} <span class="text-danger">**</span></label>
+                  <select name="direction" class="form-control">
+                    <option value="" selected disabled>{{ __('Select a Direction') }}</option>
+                    <option value="0" {{ $language->rtl == 0 ? 'selected' : '' }}>{{ __('LTR (Left to Right)') }}
+                    </option>
+                    <option value="1" {{ $language->rtl == 1 ? 'selected' : '' }}>{{ __('RTL (Right to Left)') }}
+                    </option>
+                  </select>
+                  <p id="errdirection" class="mb-0 text-danger em"></p>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="form">
+            <div class="form-group from-show-notify row">
+              <div class="col-12 text-center">
+                <button type="submit" id="submitBtn" class="btn btn-success">{{ __('Update') }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="modal-body">
-        <form id="ajaxEditForm" action="{{ route('admin.language_management.update') }}" method="POST">
-          @csrf
-          <input type="hidden" id="in_id" name="id">
-
-          <div class="form-group">
-            <label for="">{{ __('Name') . '*' }}</label>
-            <input id="in_name" type="text" class="form-control" name="name"
-              placeholder="{{ __('Enter Language Name') }}">
-            <p id="editErr_name" class="mt-2 mb-0 text-danger em"></p>
-          </div>
-
-          <div class="form-group">
-            <label for="">{{ __('Code') . '*' }}</label>
-            <input id="in_code" type="text" class="form-control" name="code"
-              placeholder="{{ __('Enter Language Code') }}">
-            <p id="editErr_code" class="mt-2 mb-0 text-danger em"></p>
-            <span class="text-warning">{{ __('Ensure the language code is valid.') }}</span>
-            <br>
-            <span class="text-warning">{{ __('Invalid codes will disable language-specific validation.') }}</span>
-          </div>
-
-          <div class="form-group">
-            <label for="">{{ __('Direction') . '*' }}</label>
-            <select id="in_direction" name="direction" class="form-control">
-              <option disabled>{{ __('Select a Direction') }}</option>
-              <option value="0">{{ __('LTR (Left To Right)') }}</option>
-              <option value="1">{{ __('RTL (Right To Left)') }}</option>
-            </select>
-            <p id="editErr_direction" class="mt-2 mb-0 text-danger em"></p>
-          </div>
-        </form>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
-          {{ __('Close') }}
-        </button>
-        <button id="updateBtn" type="button" class="btn btn-primary btn-sm">
-          {{ __('Update') }}
-        </button>
-      </div>
     </div>
   </div>
-</div>
+@endsection

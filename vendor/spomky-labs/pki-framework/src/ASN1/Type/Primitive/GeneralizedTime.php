@@ -6,8 +6,6 @@ namespace SpomkyLabs\Pki\ASN1\Type\Primitive;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use function intval;
-use function mb_strlen;
 use SpomkyLabs\Pki\ASN1\Component\Identifier;
 use SpomkyLabs\Pki\ASN1\Component\Length;
 use SpomkyLabs\Pki\ASN1\Exception\DecodeException;
@@ -17,6 +15,8 @@ use SpomkyLabs\Pki\ASN1\Type\PrimitiveType;
 use SpomkyLabs\Pki\ASN1\Type\UniversalClass;
 use Throwable;
 use UnexpectedValueException;
+use function intval;
+use function mb_strlen;
 
 /**
  * Implements *GeneralizedTime* type.
@@ -34,15 +34,15 @@ final class GeneralizedTime extends BaseTime
      * @var string
      */
     final public const REGEX = '#^' .
-    '(\d\d\d\d)' . // YYYY
-    '(\d\d)' . // MM
-    '(\d\d)' . // DD
-    '(\d\d)' . // hh
-    '(\d\d)' . // mm
-    '(\d\d)' . // ss
-    '(?:\.(\d+))?' . // frac
-    'Z' . // TZ
-    '$#';
+        '(\d\d\d\d)' . // YYYY
+        '(\d\d)' . // MM
+        '(\d\d)' . // DD
+        '(\d\d)' . // hh
+        '(\d\d)' . // mm
+        '(\d\d)' . // ss
+        '(?:\.(\d+))?' . // frac
+        'Z' . // TZ
+        '$#';
 
     /**
      * Cached formatted date.

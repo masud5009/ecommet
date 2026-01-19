@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers\Payment;
 
+use App\Http\Controllers\Front\CheckoutController;
+use App\Http\Controllers\User\UserCheckoutController;
+use App\Http\Helpers\UserPermissionHelper;
 use App\Models\Package;
+use App\Models\PaymentGateway;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Vendor\VendorCheckoutController;
+use App\Http\Helpers\Common;
 use App\Http\Helpers\MegaMailer;
-use App\Http\Helpers\VendorPermissionHelper;
-use App\Models\BasicSettings\Basic;
-use App\Models\PaymentGateway\OnlineGateway;
+use App\Models\Language;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Session;
 
@@ -20,10 +22,10 @@ class MercadopagoController extends Controller
 
     public function __construct()
     {
-        $data = OnlineGateway::whereKeyword('mercadopago')->first();
+        $data = PaymentGateway::whereKeyword('mercadopago')->first();
         $paydata = $data->convertAutoData();
         $this->access_token = $paydata['token'];
-        $this->sandbox = $paydata['sandbox_status'];
+        $this->sandbox = $paydata['sandbox_check'];
     }
 
     public function paymentProcess(Request $request, $_amount, $_success_url, $_cancel_url, $email, $_title, $_description, $bex)
@@ -40,15 +42,15 @@ class MercadopagoController extends Controller
                     'title' => $_title,
                     'description' => $_description,
                     'quantity' => 1,
-                    'currency_id' => "BRL", //unfortunately mercadopago only support BRL currency
-                    'unit_price' => round($_amount, 2),
+                    'currency_id' => $bex->base_currency_text, //unfortunately mercadopago only support BRL currency
+                    'unit_price' => round($_amount, 2), //5.53 BRL = 1 USD
                 ]
             ],
             'payer' => [
                 'email' => $email,
             ],
             'back_urls' => [
-                'success' => $return_url,
+                'success' => $notify_url,
                 'pending' => '',
                 'failure' => $cancel_url,
             ],
@@ -121,96 +123,84 @@ class MercadopagoController extends Controller
     public function successPayment(Request $request)
     {
         $requestData = Session::get('request');
+        if (session()->has('lang')) {
+            $currentLang = Language::where('code', session()->get('lang'))->first();
+        } else {
+            $currentLang = Language::where('is_default', 1)->first();
+        }
 
-        $bs = Basic::first();
-            //transaction create
-            $after_balance = NULL;
-            $pre_balance = NULL;
-            $transactionData = [
-                'vendor_id' => $requestData['vendor_id'],
-                'transaction_type' => 'membership_buy',
-                'pre_balance' => $pre_balance,
-                'actual_total' => $requestData['price'],
-                'after_balance' => $after_balance,
-                'admin_profit' => $requestData['price'],
-                'payment_method' => $requestData['payment_method'],
-                'currency_symbol' => $bs->base_currency_symbol,
-                'currency_symbol_position' => $bs->base_currency_symbol_position,
-                'payment_status' => 'completed',
-            ];
-            store_transaction($transactionData);
+        $be = $currentLang->basic_extended;
+        $bs = $currentLang->basic_setting;
+
         $success_url = Session::get('success_url');
         $cancel_url = Session::get('cancel_url');
-        $paymentUrl = "https://api.mercadopago.com/v1/payments/" . $request['payment_id'] . "?access_token=" . $this->access_token;
-        $paymentData = $this->curlCalls($paymentUrl);
-        $payment = json_decode($paymentData, true);
-        if ($payment['status'] == 'approved') {
+
+        $payment = $request->all();
+
+        if ($request->status == 'approved') {
             $paymentFor = Session::get('paymentFor');
             $package = Package::find($requestData['package_id']);
-            $transaction_id = VendorPermissionHelper::uniqidReal(8);
+            $transaction_id = UserPermissionHelper::uniqidReal(8);
             $transaction_details = json_encode($payment);
             if ($paymentFor == "membership") {
                 $amount = $requestData['price'];
                 $password = $requestData['password'];
-                $checkout = new VendorCheckoutController();
-                $vendor = $checkout->store($requestData, $transaction_id, $transaction_details, $amount, $bs, $password);
+                $checkout = new CheckoutController();
+                $requestData['status'] = 1;
+                $user = $checkout->store($requestData, $transaction_id, $transaction_details, $amount, $be, $password);
 
-                $lastMemb = $vendor->memberships()->orderBy('id', 'DESC')->first();
+                $lastMemb = $user->memberships()->orderBy('id', 'DESC')->first();
                 $activation = Carbon::parse($lastMemb->start_date);
                 $expire = Carbon::parse($lastMemb->expire_date);
-                $file_name = $this->makeInvoice($requestData, "membership", $vendor, $password, $amount, "Mercado Pago", $requestData['phone'], $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
+                $file_name = Common::makeInvoice($requestData, "membership", $user, $password, $amount, "Mercado Pago", $requestData['phone'], $be->base_currency_symbol_position, $be->base_currency_symbol, $be->base_currency_text, $transaction_id, $package->title, 1);
 
                 $mailer = new MegaMailer();
                 $data = [
-                    'toMail' => $vendor->email,
-                    'toName' => $vendor->fname,
-                    'username' => $vendor->username,
+                    'toMail' => $user->email,
+                    'toName' => $user->fname,
+                    'username' => $user->username,
                     'package_title' => $package->title,
-                    'package_price' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $package->price . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
-                    'discount' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $lastMemb->discount . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
-                    'total' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $lastMemb->price . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
+                    'package_price' => ($be->base_currency_text_position == 'left' ? $be->base_currency_text . ' ' : '') . $package->price . ($be->base_currency_text_position == 'right' ? ' ' . $be->base_currency_text : ''),
                     'activation_date' => $activation->toFormattedDateString(),
                     'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                     'membership_invoice' => $file_name,
                     'website_title' => $bs->website_title,
-                    'templateType' => 'package_purchase',
+                    'templateType' => 'registration_with_premium_package',
                     'type' => 'registrationWithPremiumPackage'
                 ];
                 $mailer->mailFromAdmin($data);
-                @unlink(public_path('assets/front/invoices/' . $file_name));
 
-                session()->flash('success', 'Your payment has been completed.');
+                session()->flash('success', __('successful_payment'));
                 Session::forget('request');
                 Session::forget('paymentFor');
                 return redirect()->route('success.page');
             } elseif ($paymentFor == "extend") {
                 $amount = $requestData['price'];
                 $password = uniqid('qrcode');
-                $checkout = new VendorCheckoutController();
-                $vendor = $checkout->store($requestData, $transaction_id, $transaction_details, $amount, $bs, $password);
+                $checkout = new UserCheckoutController();
+                $user = $checkout->store($requestData, $transaction_id, $transaction_details, $amount, $be, $password);
 
 
-                $lastMemb = $vendor->memberships()->orderBy('id', 'DESC')->first();
+                $lastMemb = $user->memberships()->orderBy('id', 'DESC')->first();
                 $activation = Carbon::parse($lastMemb->start_date);
                 $expire = Carbon::parse($lastMemb->expire_date);
-                $file_name = $this->makeInvoice($requestData, "extend", $vendor, $password, $amount, $requestData["payment_method"], $vendor->phone, $bs->base_currency_symbol_position, $bs->base_currency_symbol, $bs->base_currency_text, $transaction_id, $package->title, $lastMemb);
+                $file_name = Common::makeInvoice($requestData, "extend", $user, $password, $amount, $requestData["payment_method"], $user->phone_number, $be->base_currency_symbol_position, $be->base_currency_symbol, $be->base_currency_text, $transaction_id, $package->title, 1);
 
                 $mailer = new MegaMailer();
                 $data = [
-                    'toMail' => $vendor->email,
-                    'toName' => $vendor->fname,
-                    'username' => $vendor->username,
+                    'toMail' => $user->email,
+                    'toName' => $user->fname,
+                    'username' => $user->username,
                     'package_title' => $package->title,
-                    'package_price' => ($bs->base_currency_text_position == 'left' ? $bs->base_currency_text . ' ' : '') . $package->price . ($bs->base_currency_text_position == 'right' ? ' ' . $bs->base_currency_text : ''),
+                    'package_price' => ($be->base_currency_text_position == 'left' ? $be->base_currency_text . ' ' : '') . $package->price . ($be->base_currency_text_position == 'right' ? ' ' . $be->base_currency_text : ''),
                     'activation_date' => $activation->toFormattedDateString(),
                     'expire_date' => Carbon::parse($expire->toFormattedDateString())->format('Y') == '9999' ? 'Lifetime' : $expire->toFormattedDateString(),
                     'membership_invoice' => $file_name,
                     'website_title' => $bs->website_title,
-                    'templateType' => 'package_purchase',
+                    'templateType' => 'membership_extend',
                     'type' => 'membershipExtend'
                 ];
                 $mailer->mailFromAdmin($data);
-                @unlink(public_path('assets/front/invoices/' . $file_name));
 
                 session()->flash('success', __('successful_payment'));
                 Session::forget('request');
@@ -218,7 +208,6 @@ class MercadopagoController extends Controller
                 return redirect()->route('success.page');
             }
         }
-
 
         return redirect($cancel_url);
     }
@@ -231,7 +220,7 @@ class MercadopagoController extends Controller
         if ($paymentFor == "membership") {
             return redirect()->route('front.register.view', ['status' => $requestData['package_type'], 'id' => $requestData['package_id']])->withInput($requestData);
         } else {
-            return redirect()->route('vendor.plan.extend.checkout', ['package_id' => $requestData['package_id']])->withInput($requestData);
+            return redirect()->route('user.plan.extend.checkout', ['package_id' => $requestData['package_id']])->withInput($requestData);
         }
     }
 }

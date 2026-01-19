@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class Membership extends Model
 {
-    use HasFactory;
+    public $table = "memberships";
 
     protected $fillable = [
         'package_price',
@@ -18,21 +18,23 @@ class Membership extends Model
         'currency_symbol',
         'payment_method',
         'transaction_id',
-        'status',
         'is_trial',
         'trial_days',
         'receipt',
         'transaction_details',
         'settings',
         'package_id',
-        'vendor_id',
+        'user_id',
         'start_date',
         'expire_date',
+        'modified',
+        'conversation_id',
+        'status'
     ];
 
-    public function vendor()
+    public function user()
     {
-        return $this->belongsTo(Vendor::class, 'vendor_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function package()

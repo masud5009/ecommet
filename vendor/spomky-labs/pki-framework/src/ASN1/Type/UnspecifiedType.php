@@ -37,11 +37,13 @@ use SpomkyLabs\Pki\ASN1\Type\Primitive\VisibleString;
 use SpomkyLabs\Pki\ASN1\Type\Tagged\ApplicationType;
 use SpomkyLabs\Pki\ASN1\Type\Tagged\PrivateType;
 use UnexpectedValueException;
+use function sprintf;
 
 /**
  * Decorator class to wrap an element without already knowing the specific underlying type.
  *
  * Provides accessor methods to test the underlying type and return a type hinted instance of the concrete element.
+ * @see \SpomkyLabs\Pki\Test\ASN1\Type\UnspecifiedTypeTest
  */
 final class UnspecifiedType implements ElementBase
 {

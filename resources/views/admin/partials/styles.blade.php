@@ -1,25 +1,21 @@
-{{-- fontawesome css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/all.min.css') }}">
-{{-- fontawesome icon picker css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/fontawesome-iconpicker.min.css') }}">
-{{-- bootstrap css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}">
-{{-- bootstrap tags-input css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/bootstrap-tagsinput.css') }}">
-{{-- jQuery-ui css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/jquery-ui.min.css') }}">
-{{-- jQuery-timepicker css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/jquery.timepicker.min.css') }}">
-{{-- bootstrap-datepicker css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/bootstrap-datepicker.min.css') }}">
-{{-- dropzone css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/dropzone.min.css') }}">
-{{-- atlantis css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/atlantis.css') }}">
-{{-- select2 css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/select2.min.css') }}">
-{{-- admin-main css --}}
-<link rel="stylesheet" href="{{ asset('assets/css/admin-main.css') }}">
-@if (!empty($currentLang) && $currentLang->direction == 1)
-  <link rel="stylesheet" href="{{ asset('assets/css/admin-rtl.css') }}">
+<!-- CSS Files -->
+<link href="{{ asset('assets/front/css/all.min.css') }}" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('assets/admin/css/fontawesome-iconpicker.min.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/admin/css/dropzone.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/admin/css/bootstrap.min.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/admin/css/bootstrap-tagsinput.css') }}">
+
+<link rel="stylesheet" href="{{ asset('assets/admin/css/jquery-ui.min.css') }}">
+
+<link rel="stylesheet" href="{{ asset('assets/admin/css/flatpickr.min.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/admin/css/select2.min.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/admin/css/atlantis.css') }}">
+<link rel="stylesheet" href="{{ asset('assets/admin/css/custom.css') }}">
+@if (request()->cookie('admin-theme') == 'dark')
+  <link rel="stylesheet" href="{{ asset('assets/admin/css/dark.css') }}">
 @endif
+
+@if ($default->rtl == 1)
+  <link rel="stylesheet" href="{{ asset('assets/admin/css/rtl-style.css') }}">
+@endif
+@yield('styles')

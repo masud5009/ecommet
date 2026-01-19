@@ -2,21 +2,20 @@
 <html>
 
 <head>
-    <meta charset="UTF-8">
-    <title>{{ $data['website_title'] }}</title>
+  <meta charset="UTF-8">
+  <title>{{ $bs->website_title }}</title>
 </head>
 
 <body>
-    <form action="{{ $data['url'] }}" method="{{ $data['method'] }}" id="paymentForm">
-      @csrf
-        @foreach ($data['val'] as $key => $value)
-            <input type="hidden" name="{{ $key }}" value="{{ $value }}" />
-        @endforeach
-    </form>
-    <script>
-        "use strict";
-        document.getElementById("paymentForm").submit();
-    </script>
+  <form action="{{ $data['url'] }}" method="{{ $data['method'] }}" id="paymentForm">
+    @foreach ($data['val'] as $key => $value)
+      <input type="hidden" name="{{ $key }}" value="{{ $value }}" />
+    @endforeach
+  </form>
+  <script>
+    "use strict";
+    document.getElementById("paymentForm").submit();
+  </script>
 </body>
 
 </html>

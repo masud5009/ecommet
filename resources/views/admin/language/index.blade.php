@@ -23,104 +23,121 @@
       </li>
     </ul>
   </div>
-
   <div class="row">
     <div class="col-md-12">
+
       <div class="card">
         <div class="card-header">
-          <div class="card-title d-inline-block">{{ __('Languages') }}</div>
-          <a href="#" class="btn btn-sm btn-primary float-right" data-toggle="modal" data-target="#createModal">
-            <i class="fas fa-plus"></i> {{ __('Add') }}
-          </a>
-          <a href="#" class="btn btn-secondary btn-sm mr-1 mb-1 float-lg-right float-left editBtn"
-            data-toggle="modal" data-target="#addModal">
-            <span class="btn-label">
-              <i class="fas fa-plus"></i>
-            </span>
-            {{ __('Add Website Keyword') }}
-          </a>
-          <a href="#" class="btn btn-secondary btn-sm mr-1 mb-1 float-lg-right float-left editBtn"
-            data-toggle="modal" data-target="#adminKeywordModal">
-            <span class="btn-label">
-              <i class="fas fa-plus"></i>
-            </span>
-            {{ __('Add Dashboard Keyword') }}
-          </a>
-        </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card-title d-inline-block">{{ __('Languages') }}</div>
+            </div>
+            <div class="col-md-6">
+              <div class="d-flex justify-content-end gap-3 language_relateBtn">
+                <a href="#" class="btn btn-info btn-sm mr-1" data-toggle="modal" data-target="#addModal">
+                  <span class="btn-label">
+                    <i class="fas fa-plus"></i>
+                  </span>
+                  {{ __('Add Frontend Keyword') }}
+                </a>
 
+                <a href="#" class="btn btn-secondary btn-sm" data-toggle="modal"
+                  data-target="#addAdminKeywordModal">
+                  <span class="btn-label">
+                    <i class="fas fa-plus"></i>
+                  </span>
+                  {{ __('Add Admin Keyword') }}
+                </a>
+
+                <a href="#" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#createModal"><i
+                    class="fas fa-plus"></i> {{ __('Add Language') }}</a>
+              </div>
+            </div>
+          </div>
+
+        </div>
         <div class="card-body">
           <div class="row">
             <div class="col-lg-12">
               @if (count($languages) == 0)
-                <h3 class="text-center">{{ __('NO LANGUAGE FOUND') . '!' }}</h3>
+                <h3 class="text-center">{{ __('NO LANGUAGE FOUND') }}</h3>
               @else
                 <div class="table-responsive">
-                  <table class="table table-striped mt-3" id="basic-datatables">
+                  <table class="table table-striped mt-3">
                     <thead>
                       <tr>
-                        <th scope="col">{{ __('#') }}</th>
                         <th scope="col">{{ __('Name') }}</th>
                         <th scope="col">{{ __('Code') }}</th>
-                        <th scope="col">{{ __('Website Language') }}</th>
+                        <th scope="col">{{ __('Default in Website') }}</th>
+                        <th scope="col">{{ __('Default in Dashboard') }}</th>
                         <th scope="col">{{ __('Actions') }}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      @foreach ($languages as $language)
+                      @foreach ($languages as $key => $language)
                         <tr>
-                          <td>{{ $loop->iteration }}</td>
                           <td>{{ $language->name }}</td>
                           <td>{{ $language->code }}</td>
                           <td>
                             @if ($language->is_default == 1)
                               <strong class="badge badge-success">{{ __('Default') }}</strong>
                             @else
-                              <form class="d-inline-block"
-                                action="{{ route('admin.language_management.make_default_language', ['id' => $language->id]) }}"
+                              <form class="d-inline-block" action="{{ route('admin.language.default', $language->id) }}"
                                 method="post">
                                 @csrf
-                                <button class="btn btn-primary btn-sm" type="submit" name="button">
-                                  {{ __('Make Default') }}
-                                </button>
+                                <button class="btn btn-primary btn-sm" type="submit"
+                                  name="button">{{ __('Make Default') }}</button>
                               </form>
                             @endif
                           </td>
                           <td>
-                            <a href="#" class="btn  mt-1 btn-secondary btn-sm mr-1 editBtn" data-toggle="modal"
-                              data-target="#editModal" data-id="{{ $language->id }}" data-name="{{ $language->name }}"
-                              data-code="{{ $language->code }}" data-direction="{{ $language->direction }}">
-                              <span class="btn-label">
-                                <i class="fas fa-edit"></i>
-                              </span>
-                              {{ __('Edit') }}
-                            </a>
-
-                            <a class="btn btn-info  mt-1 btn-sm mr-1"
-                              href="{{ route('admin.language_management.edit_admin_keyword', $language->id) }}">
-                              <span class="btn-label">
-                                <i class="fas fa-edit"></i>
-                              </span>
-                              {{ __('Edit Dashboard Keyword') }}
-                            </a>
-                            <a class="btn btn-info  mt-1 btn-sm mr-1"
-                              href="{{ route('admin.language_management.edit_keyword', $language->id) }}">
-                              <span class="btn-label">
-                                <i class="fas fa-edit"></i>
-                              </span>
-                              {{ __('Edit Website Keyword') }}
-                            </a>
-
-                            <form class="deleteForm d-inline-block"
-                              action="{{ route('admin.language_management.delete', ['id' => $language->id]) }}"
-                              method="post">
-                              @csrf
-                              <button type="submit" class="btn btn-danger  mt-1 btn-sm deleteBtn">
-                                <span class="btn-label">
-                                  <i class="fas fa-trash"></i>
-                                </span>
-                                {{ __('Delete') }}
+                            @if ($language->dashboard_default == 1)
+                              <strong class="badge badge-success">{{ __('Default') }}</strong>
+                            @else
+                              <form class="d-inline-block"
+                                action="{{ route('admin.language.dashboardDefault', $language->id) }}" method="post">
+                                @csrf
+                                <button class="btn btn-primary btn-sm" type="submit"
+                                  name="button">{{ __('Make Default') }}</button>
+                              </form>
+                            @endif
+                          </td>
+                          <td>
+                            <div class="dropdown">
+                              <button class="btn btn-sm btn-secondary dropdown-toggle" type="button"
+                                id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                {{ __('Select') }}
                               </button>
-                            </form>
+
+                              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                <a href="{{ route('admin.language.edit', $language->id) }}" class="dropdown-item">
+                                  {{ __('Edit') }}
+                                </a>
+                                <a class="dropdown-item" href="{{ route('admin.language.editKeyword', $language->id) }}">
+                                  {{ __('Edit Admin Frontend Keywords') }}
+                                </a>
+                                <a class="dropdown-item"
+                                  href="{{ route('admin.language.admin_dashboard.editKeyword', $language->id) }}">
+                                  {{ __('Edit Admin Dashboard Keywords') }}
+                                </a>
+                                <a class="dropdown-item"
+                                  href="{{ route('admin.language.user_dashboard.editKeyword', $language->id) }}">
+                                  {{ __('Edit User Dashboard Keywords') }}
+                                </a>
+                                <a class="dropdown-item"
+                                  href="{{ route('admin.language.user_frontend.editKeyword', $language->id) }}">
+                                  {{ __('Edit User Frontend Keywords') }}
+                                </a>
+                                <form class="deleteform" action="{{ route('admin.language.delete', $language->id) }}"
+                                  method="post">
+                                  @csrf
+                                  <button type="submit" class="deletebtn px-4">
+                                    {{ __('Delete') }}
+                                  </button>
+                                </form>
+
+                              </div>
+                            </div>
                           </td>
                         </tr>
                       @endforeach
@@ -131,16 +148,84 @@
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
 
-  {{-- create modal --}}
-  @includeIf('admin.language.create')
+  {{-- language keyword for admin modal start --}}
+  <div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exampleModalLongTitle">{{ __('Add Keyword') }}</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
 
-  {{-- edit modal --}}
-  @includeIf('admin.language.edit')
-  @includeIf('admin.language.include.front-keyword-modal')
-  @includeIf('admin.language.include.admin-keyword-modal')
-  {{-- language modal start end --}}
+        <div class="modal-body">
+          <form id="ajaxForm2" action="{{ route('admin.language.add_keyword') }}" method="POST">
+            @csrf
+            <div class="form-group">
+              <label for="">{{ __('Keyword') }} <span class="text-danger">**</span></label>
+              <input type="text" class="form-control" name="keyword" placeholder="{{ __('Enter Keyword') }}">
+              <p id="errkeyword" class="mt-1 mb-0 text-danger em"></p>
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+            {{ __('Close') }}
+          </button>
+          <button id="submitBtn2" type="button" class="btn btn-primary btn-sm">
+            {{ __('Submit') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {{-- language keyword for admin modal end --}}
+
+
+  {{-- language keyword for admin modal start --}}
+  <div class="modal fade" id="addAdminKeywordModal" tabindex="-1" role="dialog"
+    aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exampleModalLongTitle">{{ __('Add Keyword') }}</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <form id="ajaxForm3" action="{{ route('admin.language.add_keyword.admin.dashboard') }}" method="POST">
+            @csrf
+            <div class="form-group">
+              <label for="">{{ __('Keyword') }} <span class="text-danger">**</span></label>
+              <input type="text" class="form-control" name="keyword" placeholder="{{ __('Enter Keyword') }}">
+              <p id="errrkeyword" class="mt-1 mb-0 text-danger em"></p>
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+            {{ __('Close') }}
+          </button>
+          <button id="submitBtn3" type="button" class="btn btn-primary btn-sm">
+            {{ __('Submit') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {{-- language keyword for admin modal end --}}
+
+  <!-- Create Language Modal -->
+  @includeif('admin.language.create')
 @endsection
