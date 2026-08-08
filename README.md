@@ -1,4 +1,4 @@
-# Ecommet
+# Ecommet – White-Label Multitenant Ecommerce Website Builder (AI Powered)
 
 > ⚠️ **View-Only Repository** — This code is publicly shared for portfolio and code review purposes only.
 > Unauthorized use, copying, or distribution is strictly prohibited. See [LICENSE](./LICENSE) for details.
