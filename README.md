@@ -74,41 +74,6 @@ ecommet/
 
 ---
 
-## 📋 Setup (For Reference Only)
-
-> **Note:** This project is not intended for public deployment. Setup instructions are provided for code review context only.
-
-```bash
-# Clone the repository
-git clone <repo-url>
-
-# Install dependencies
-composer install
-npm install
-
-# Configure environment
-cp .env.example .env
-php artisan key:generate
-
-# Run migrations
-php artisan migrate
-
-# Start development server
-php artisan serve
-```
-
----
-
-## 📄 License & Usage
-
-**© 2025. All Rights Reserved.**
-
-This repository is **publicly visible** for portfolio and recruitment evaluation purposes only. You may **view and read** the code, but you may **not** use, copy, modify, or distribute it without explicit written permission from the author.
-
-See the full [LICENSE](./LICENSE) file for complete terms.
-
----
-
 ## 📬 Contact
 
 If you're a recruiter or developer interested in this work, feel free to reach out through GitHub.
