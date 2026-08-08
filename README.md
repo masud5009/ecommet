@@ -73,7 +73,3 @@ ecommet/
 - **Marketing & Sales Boosters:** Flash sales, coupon management, wishlist, product comparisons, and push notifications (Webpush / VAPID).
 
 ---
-
-## 📬 Contact
-
-If you're a recruiter or developer interested in this work, feel free to reach out through GitHub.
